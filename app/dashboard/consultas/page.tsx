@@ -1,13 +1,33 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
@@ -21,128 +41,105 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Search,
-  Calendar,
   CalendarPlus,
-  Filter,
-  Clock,
-  Stethoscope,
   MoreHorizontal,
   Edit,
   Trash2,
   Eye,
 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
-// Dados simulados
-const appointments = [
-  {
-    id: 1,
-    patient: "Maria Silva",
-    doctor: "Dr. João Santos",
-    date: "2024-01-20",
-    time: "09:00",
-    type: "Consulta",
-    status: "Agendado",
-    observations: "Consulta de rotina",
-  },
-  {
-    id: 2,
-    patient: "Carlos Oliveira",
-    doctor: "Dr. Ana Costa",
-    date: "2024-01-20",
-    time: "10:30",
-    type: "Retorno",
-    status: "Confirmado",
-    observations: "Acompanhamento pós-cirúrgico",
-  },
-  {
-    id: 3,
-    patient: "Lucia Ferreira",
-    doctor: "Dr. João Santos",
-    date: "2024-01-20",
-    time: "14:00",
-    type: "Exame",
-    status: "Concluído",
-    observations: "Exame de rotina realizado",
-  },
-  {
-    id: 4,
-    patient: "Pedro Almeida",
-    doctor: "Dr. Ana Costa",
-    date: "2024-01-21",
-    time: "08:30",
-    type: "Consulta",
-    status: "Cancelado",
-    observations: "Cancelado pelo paciente",
-  },
-  {
-    id: 5,
-    patient: "Sofia Lima",
-    doctor: "Dr. João Santos",
-    date: "2024-01-21",
-    time: "15:30",
-    type: "Emergência",
-    status: "Agendado",
-    observations: "Atendimento de urgência",
-  },
-]
+interface Appointment {
+  id: string
+  paciente_id: string
+  paciente_nome: string
+  data: string
+  hora: string
+  tipo_consulta: string
+  observacoes: string | null
+  status: string
+}
 
-const doctors = ["Dr. João Santos", "Dr. Ana Costa", "Dr. Pedro Silva"]
+const statusOptions = ["Agendado", "Confirmado", "Concluído", "Cancelado"]
 const appointmentTypes = ["Consulta", "Retorno", "Exame", "Emergência"]
 
-const stats = [
-  {
-    title: "Consultas Hoje",
-    value: "12",
-    icon: Calendar,
-    color: "text-blue-600",
-  },
-  {
-    title: "Confirmadas",
-    value: "8",
-    icon: Clock,
-    color: "text-green-600",
-  },
-  {
-    title: "Pendentes",
-    value: "3",
-    icon: Clock,
-    color: "text-yellow-600",
-  },
-  {
-    title: "Canceladas",
-    value: "1",
-    icon: Clock,
-    color: "text-red-600",
-  },
-]
-
 export default function AppointmentsPage() {
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [doctorFilter, setDoctorFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("")
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false)
+
   const [newAppointment, setNewAppointment] = useState({
-    patient: "",
-    doctor: "",
-    date: "",
-    time: "",
-    type: "",
-    observations: "",
+    paciente_nome: "",
+    data: "",
+    hora: "",
+    tipo_consulta: "",
+    observacoes: "",
   })
 
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null)
+  const [loadingEdit, setLoadingEdit] = useState(false)
+  const [errorEdit, setErrorEdit] = useState("")
+  const [successEdit, setSuccessEdit] = useState("")
+
+  // Busca consultas do Supabase
+  async function fetchAppointments() {
+    try {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+          id,
+          paciente_id,
+          data,
+          hora,
+          tipo_consulta,
+          observacoes,
+          status,
+          paciente:patients(nome)
+        `)
+        .order("data", { ascending: false })
+        .order("hora", { ascending: true })
+
+      if (error) throw error
+
+      const mapped = (data || []).map((a) => ({
+        id: a.id,
+        paciente_id: a.paciente_id,
+        paciente_nome: a.paciente?.nome ?? "Desconhecido",
+        data: a.data,
+        hora: a.hora,
+        tipo_consulta: a.tipo_consulta,
+        observacoes: a.observacoes,
+        status: a.status ?? "Agendado",
+      }))
+
+      setAppointments(mapped)
+    } catch (error) {
+      console.error("Erro ao buscar consultas:", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchAppointments()
+  }, [])
+
+  // Filtra consultas conforme os filtros aplicados
   const filteredAppointments = appointments.filter((appointment) => {
-    const matchesSearch =
-      appointment.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.doctor.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = appointment.paciente_nome.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || appointment.status === statusFilter
-    const matchesDoctor = doctorFilter === "all" || appointment.doctor === doctorFilter
-    const matchesDate = !dateFilter || appointment.date === dateFilter
+    const matchesDate = !dateFilter || appointment.data === dateFilter
 
-    return matchesSearch && matchesStatus && matchesDoctor && matchesDate
+    return matchesSearch && matchesStatus && matchesDate
   })
 
+  // Cores para status
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Agendado":
@@ -158,6 +155,7 @@ export default function AppointmentsPage() {
     }
   }
 
+  // Cores para tipo de consulta
   const getTypeColor = (type: string) => {
     switch (type) {
       case "Consulta":
@@ -173,18 +171,153 @@ export default function AppointmentsPage() {
     }
   }
 
-  const handleNewAppointment = () => {
-    // Aqui seria a integração com Supabase
-    console.log("Nova consulta:", newAppointment)
-    setIsNewAppointmentOpen(false)
-    setNewAppointment({
-      patient: "",
-      doctor: "",
-      date: "",
-      time: "",
-      type: "",
-      observations: "",
-    })
+  // Criar nova consulta
+  const handleNewAppointment = async () => {
+    try {
+      if (!newAppointment.paciente_nome.trim()) {
+        alert("Informe o nome do paciente")
+        return
+      }
+      if (!newAppointment.data.trim()) {
+        alert("Informe a data")
+        return
+      }
+      if (!newAppointment.hora.trim()) {
+        alert("Informe o horário")
+        return
+      }
+      if (!newAppointment.tipo_consulta.trim()) {
+        alert("Informe o tipo de consulta")
+        return
+      }
+
+      const { data: patientData, error: patientError } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("nome", newAppointment.paciente_nome)
+        .single()
+
+      if (patientError || !patientData) {
+        alert("Paciente não encontrado. Cadastre o paciente antes.")
+        return
+      }
+
+      const { error } = await supabase.from("appointments").insert([
+        {
+          paciente_id: patientData.id,
+          data: newAppointment.data,
+          hora: newAppointment.hora,
+          tipo_consulta: newAppointment.tipo_consulta,
+          observacoes: newAppointment.observacoes,
+          status: "Agendado",
+        },
+      ])
+
+      if (error) throw error
+
+      alert("Consulta agendada com sucesso!")
+      setIsNewAppointmentOpen(false)
+      setNewAppointment({
+        paciente_nome: "",
+        data: "",
+        hora: "",
+        tipo_consulta: "",
+        observacoes: "",
+      })
+      fetchAppointments()
+    } catch (error: any) {
+      alert("Erro ao agendar consulta: " + error.message)
+    }
+  }
+
+  // Abrir modal edição com dados da consulta
+  function openEditModal(appointment: Appointment) {
+    setErrorEdit("")
+    setSuccessEdit("")
+    setEditingAppointment(appointment)
+  }
+
+  // Fechar modal edição
+  function closeEditModal() {
+    setEditingAppointment(null)
+    setErrorEdit("")
+    setSuccessEdit("")
+  }
+
+  // Atualizar consulta
+  async function handleUpdateAppointment() {
+    if (!editingAppointment) return
+
+    const { paciente_nome, data, hora, tipo_consulta } = editingAppointment
+    if (!paciente_nome.trim()) return setErrorEdit("Informe o nome do paciente.")
+    if (!data.trim()) return setErrorEdit("Informe a data da consulta.")
+    if (!hora.trim()) return setErrorEdit("Informe o horário da consulta.")
+    if (!tipo_consulta.trim()) return setErrorEdit("Selecione o tipo de consulta.")
+
+    setLoadingEdit(true)
+    setErrorEdit("")
+    setSuccessEdit("")
+
+    try {
+      const { data: patientData, error: patientError } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("nome", paciente_nome)
+        .single()
+
+      if (patientError || !patientData) {
+        setErrorEdit("Paciente não encontrado. Cadastre o paciente antes.")
+        setLoadingEdit(false)
+        return
+      }
+
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          paciente_id: patientData.id,
+          data,
+          hora,
+          tipo_consulta,
+          observacoes: editingAppointment.observacoes,
+        })
+        .eq("id", editingAppointment.id)
+
+      if (error) {
+        setErrorEdit("Erro ao atualizar consulta: " + error.message)
+      } else {
+        setSuccessEdit("Consulta atualizada com sucesso!")
+        fetchAppointments()
+        setTimeout(() => {
+          closeEditModal()
+        }, 1500)
+      }
+    } catch (error: any) {
+      setErrorEdit("Erro inesperado: " + error.message)
+    } finally {
+      setLoadingEdit(false)
+    }
+  }
+
+  // Cancelar consulta (muda status para "Cancelado")
+  async function handleCancelAppointment(appointmentId: string) {
+    const confirmCancel = confirm("Tem certeza que deseja cancelar esta consulta?")
+    if (!confirmCancel) return
+
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: "Cancelado" })
+        .eq("id", appointmentId)
+
+      if (error) {
+        alert("Erro ao cancelar consulta: " + error.message)
+      } else {
+        alert("Consulta cancelada com sucesso!")
+        fetchAppointments()
+      }
+    } catch (error: any) {
+      alert("Erro inesperado: " + error.message)
+    }
   }
 
   return (
@@ -205,7 +338,9 @@ export default function AppointmentsPage() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Agendar Nova Consulta</DialogTitle>
-              <DialogDescription>Preencha os dados para agendar uma nova consulta</DialogDescription>
+              <DialogDescription>
+                Preencha os dados para agendar uma nova consulta
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -213,36 +348,23 @@ export default function AppointmentsPage() {
                 <Input
                   id="patient"
                   placeholder="Nome do paciente"
-                  value={newAppointment.patient}
-                  onChange={(e) => setNewAppointment((prev) => ({ ...prev, patient: e.target.value }))}
+                  value={newAppointment.paciente_nome}
+                  onChange={(e) =>
+                    setNewAppointment((prev) => ({ ...prev, paciente_nome: e.target.value }))
+                  }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="doctor">Médico</Label>
-                <Select
-                  value={newAppointment.doctor}
-                  onValueChange={(value) => setNewAppointment((prev) => ({ ...prev, doctor: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o médico" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor} value={doctor}>
-                        {doctor}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Data</Label>
                   <Input
                     id="date"
                     type="date"
-                    value={newAppointment.date}
-                    onChange={(e) => setNewAppointment((prev) => ({ ...prev, date: e.target.value }))}
+                    value={newAppointment.data}
+                    onChange={(e) =>
+                      setNewAppointment((prev) => ({ ...prev, data: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -250,16 +372,20 @@ export default function AppointmentsPage() {
                   <Input
                     id="time"
                     type="time"
-                    value={newAppointment.time}
-                    onChange={(e) => setNewAppointment((prev) => ({ ...prev, time: e.target.value }))}
+                    value={newAppointment.hora}
+                    onChange={(e) =>
+                      setNewAppointment((prev) => ({ ...prev, hora: e.target.value }))
+                    }
                   />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Tipo de Consulta</Label>
                 <Select
-                  value={newAppointment.type}
-                  onValueChange={(value) => setNewAppointment((prev) => ({ ...prev, type: value }))}
+                  value={newAppointment.tipo_consulta}
+                  onValueChange={(value) =>
+                    setNewAppointment((prev) => ({ ...prev, tipo_consulta: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
@@ -278,8 +404,11 @@ export default function AppointmentsPage() {
                 <Textarea
                   id="observations"
                   placeholder="Observações sobre a consulta"
-                  value={newAppointment.observations}
-                  onChange={(e) => setNewAppointment((prev) => ({ ...prev, observations: e.target.value }))}
+                  value={newAppointment.observacoes}
+                  onChange={(e) =>
+                    setNewAppointment((prev) => ({ ...prev, observacoes: e.target.value }))
+                  }
+                  rows={4}
                 />
               </div>
             </div>
@@ -292,164 +421,227 @@ export default function AppointmentsPage() {
         </Dialog>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Modal de edição */}
+      <Dialog open={!!editingAppointment} onOpenChange={(open) => !open && closeEditModal()}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Consulta</DialogTitle>
+            <DialogDescription>Altere os dados da consulta abaixo</DialogDescription>
+          </DialogHeader>
 
-      {/* Filters and Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Agenda de Consultas</CardTitle>
-          <CardDescription>Visualize e gerencie todas as consultas agendadas</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar por paciente ou médico..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full sm:w-[180px]"
-            />
-            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Médico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Médicos</SelectItem>
-                {doctors.map((doctor) => (
-                  <SelectItem key={doctor} value={doctor}>
-                    {doctor}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="Agendado">Agendado</SelectItem>
-                <SelectItem value="Confirmado">Confirmado</SelectItem>
-                <SelectItem value="Concluído">Concluído</SelectItem>
-                <SelectItem value="Cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {errorEdit && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{errorEdit}</AlertDescription>
+            </Alert>
+          )}
 
-          {/* Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Médico</TableHead>
-                  <TableHead>Data e Horário</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Observações</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAppointments.map((appointment) => (
-                  <TableRow key={appointment.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <Avatar>
-                          <AvatarImage src={`/placeholder.svg?height=32&width=32`} />
-                          <AvatarFallback>
-                            {appointment.patient
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium text-gray-900">{appointment.patient}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Stethoscope className="h-4 w-4 text-blue-600" />
-                        <span>{appointment.doctor}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div className="font-medium">{new Date(appointment.date).toLocaleDateString("pt-BR")}</div>
-                        <div className="text-gray-500 flex items-center">
-                          <Clock className="mr-1 h-3 w-3" />
-                          {appointment.time}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getTypeColor(appointment.type)}>{appointment.type}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(appointment.status)}>{appointment.status}</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">{appointment.observations}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Ver detalhes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Cancelar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          {successEdit && (
+            <Alert variant="success" className="mb-4">
+              <AlertDescription>{successEdit}</AlertDescription>
+            </Alert>
+          )}
 
-          {filteredAppointments.length === 0 && (
-            <div className="text-center py-8">
-              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma consulta encontrada</h3>
-              <p className="mt-1 text-sm text-gray-500">Tente ajustar os filtros ou agende uma nova consulta.</p>
+          {editingAppointment && (
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-patient">Paciente *</Label>
+                <Input
+                  id="edit-patient"
+                  value={editingAppointment.paciente_nome}
+                  onChange={(e) =>
+                    setEditingAppointment((prev) =>
+                      prev ? { ...prev, paciente_nome: e.target.value } : null
+                    )
+                  }
+                  disabled={loadingEdit}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-date">Data *</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={editingAppointment.data}
+                    onChange={(e) =>
+                      setEditingAppointment((prev) =>
+                        prev ? { ...prev, data: e.target.value } : null
+                      )
+                    }
+                    disabled={loadingEdit}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-time">Horário *</Label>
+                  <Input
+                    id="edit-time"
+                    type="time"
+                    value={editingAppointment.hora}
+                    onChange={(e) =>
+                      setEditingAppointment((prev) =>
+                        prev ? { ...prev, hora: e.target.value } : null
+                      )
+                    }
+                    disabled={loadingEdit}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-type">Tipo de Consulta *</Label>
+                <Select
+                  value={editingAppointment.tipo_consulta}
+                  onValueChange={(value) =>
+                    setEditingAppointment((prev) =>
+                      prev ? { ...prev, tipo_consulta: value } : null
+                    )
+                  }
+                  disabled={loadingEdit}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointmentTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-observations">Observações</Label>
+                <Textarea
+                  id="edit-observations"
+                  value={editingAppointment.observacoes || ""}
+                  onChange={(e) =>
+                    setEditingAppointment((prev) =>
+                      prev ? { ...prev, observacoes: e.target.value } : null
+                    )
+                  }
+                  disabled={loadingEdit}
+                  rows={4}
+                />
+              </div>
             </div>
           )}
+
+          <DialogFooter>
+            <Button onClick={handleUpdateAppointment} disabled={loadingEdit}>
+              {loadingEdit ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Filtros */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+          <CardDescription>Filtre consultas para encontrar facilmente</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input
+            placeholder="Buscar paciente"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="col-span-1 sm:col-span-2"
+            icon={<Search className="h-4 w-4" />}
+          />
+          <Select value={statusFilter} onValueChange={setStatusFilter} className="col-span-1">
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="col-span-1 sm:col-span-1"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Tabela */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Consultas</CardTitle>
+          <CardDescription>Lista das consultas agendadas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Paciente</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Horário</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredAppointments.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    Nenhuma consulta encontrada.
+                  </TableCell>
+                </TableRow>
+              )}
+              {filteredAppointments.map((appointment) => (
+                <TableRow key={appointment.id}>
+                  <TableCell>{appointment.paciente_nome}</TableCell>
+                  <TableCell>{appointment.data}</TableCell>
+                  <TableCell>{appointment.hora}</TableCell>
+                  <TableCell>
+                    <Badge className={getTypeColor(appointment.tipo_consulta)}>
+                      {appointment.tipo_consulta}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusColor(appointment.status)}>
+                      {appointment.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Abrir menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => alert("Ver detalhes em breve")}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Ver detalhes
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEditModal(appointment)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => handleCancelAppointment(appointment.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Cancelar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

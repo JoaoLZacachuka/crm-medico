@@ -1,107 +1,168 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabaseClient"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Users, Calendar, DollarSign, TrendingUp, UserPlus, CalendarPlus, Clock, CheckCircle } from "lucide-react"
+import {
+  Users,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  UserPlus,
+  CalendarPlus,
+  Clock,
+} from "lucide-react"
 import Link from "next/link"
 
-// Dados simulados
-const stats = [
-  {
-    title: "Total de Pacientes",
-    value: "1,234",
-    change: "+12%",
-    changeType: "positive" as const,
-    icon: Users,
-  },
-  {
-    title: "Consultas Hoje",
-    value: "23",
-    change: "+5%",
-    changeType: "positive" as const,
-    icon: Calendar,
-  },
-  {
-    title: "Receita Mensal",
-    value: "R$ 45.231",
-    change: "+18%",
-    changeType: "positive" as const,
-    icon: DollarSign,
-  },
-  {
-    title: "Taxa de Crescimento",
-    value: "12.5%",
-    change: "+2.1%",
-    changeType: "positive" as const,
-    icon: TrendingUp,
-  },
-]
+interface Patient {
+  id: string
+  nome: string
+  email: string | null
+  criado_em?: string
+}
 
-const recentPatients = [
-  {
-    id: 1,
-    name: "Maria Silva",
-    email: "maria@email.com",
-    lastVisit: "2024-01-15",
-    status: "Ativo",
-  },
-  {
-    id: 2,
-    name: "João Santos",
-    email: "joao@email.com",
-    lastVisit: "2024-01-14",
-    status: "Ativo",
-  },
-  {
-    id: 3,
-    name: "Ana Costa",
-    email: "ana@email.com",
-    lastVisit: "2024-01-13",
-    status: "Pendente",
-  },
-]
-
-const todayAppointments = [
-  {
-    id: 1,
-    patient: "Carlos Oliveira",
-    time: "09:00",
-    type: "Consulta",
-    status: "Confirmado",
-  },
-  {
-    id: 2,
-    patient: "Lucia Ferreira",
-    time: "10:30",
-    type: "Retorno",
-    status: "Confirmado",
-  },
-  {
-    id: 3,
-    patient: "Pedro Almeida",
-    time: "14:00",
-    type: "Consulta",
-    status: "Pendente",
-  },
-  {
-    id: 4,
-    patient: "Sofia Lima",
-    time: "15:30",
-    type: "Exame",
-    status: "Confirmado",
-  },
-]
+interface Appointment {
+  id: string
+  paciente_nome: string
+  hora: string
+  tipo_consulta: string | null
+  observacoes: string | null
+  data: string
+}
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState({
+    totalPatients: 0,
+    consultationsToday: 0,
+    monthlyRevenue: 0,
+    growthRate: 0,
+  })
+
+  const [recentPatients, setRecentPatients] = useState<Patient[]>([])
+  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
+  const [userName, setUserName] = useState<string>("")
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    async function fetchUserAndData() {
+      setLoading(true)
+      setError("")
+
+      try {
+        // Pega o usuário logado
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser()
+        if (userError) throw userError
+        if (!user) throw new Error("Usuário não autenticado")
+
+        // Busca o perfil (nome) na tabela profiles usando o user.id
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single()
+
+        if (profileError) throw profileError
+        setUserName(profileData?.full_name ?? "")
+
+        // Total de pacientes
+        const { count: totalPatients, error: countError } = await supabase
+          .from("patients")
+          .select("id", { count: "exact", head: true })
+
+        if (countError) throw countError
+
+        // Pacientes recentes
+        const { data: patientsData, error: patientsError } = await supabase
+          .from("patients")
+          .select("id, nome, email, criado_em")
+          .order("criado_em", { ascending: false })
+          .limit(3)
+
+        if (patientsError) throw patientsError
+
+        // Consultas do dia
+        const today = new Date()
+        const todayString = today.toISOString().slice(0, 10) // 'YYYY-MM-DD'
+
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from("appointments")
+          .select(`
+            id,
+            hora,
+            tipo_consulta,
+            observacoes,
+            data,
+            paciente:patients(nome)
+          `)
+          .eq("data", todayString)
+          .order("hora")
+
+        if (appointmentsError) throw appointmentsError
+
+        setStats({
+          totalPatients: totalPatients || 0,
+          consultationsToday: appointmentsData?.length || 0,
+          monthlyRevenue: 45231, // aqui você pode puxar da tabela financeira se quiser
+          growthRate: 12.5,
+        })
+
+        setRecentPatients(patientsData || [])
+
+        setTodayAppointments(
+          (appointmentsData || []).map((apt) => ({
+            id: apt.id,
+            paciente_nome: apt.paciente?.nome ?? "Desconhecido",
+            hora: apt.hora,
+            tipo_consulta: apt.tipo_consulta,
+            observacoes: apt.observacoes,
+            data: apt.data,
+          }))
+        )
+      } catch (err: any) {
+        setError("Erro ao carregar dados: " + err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUserAndData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64 text-gray-600">
+        Carregando dados do dashboard...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-600 font-semibold text-center py-8">{error}</div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">Bem-vindo de volta, Dr. Silva</p>
+          <p className="mt-2 text-gray-600">Bem-vindo de volta, Dr. {userName}</p>
         </div>
         <div className="mt-4 sm:mt-0 flex space-x-3">
           <Button asChild>
@@ -121,25 +182,80 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-              <p className="text-xs text-green-600 flex items-center mt-1">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                {stat.change} em relação ao mês anterior
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total de Pacientes
+            </CardTitle>
+            <Users className="h-4 w-4 text-gray-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {stats.totalPatients}
+            </div>
+            <p className="text-xs text-green-600 flex items-center mt-1">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              +12% em relação ao mês anterior
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Consultas Hoje
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-gray-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {stats.consultationsToday}
+            </div>
+            <p className="text-xs text-green-600 flex items-center mt-1">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              +5% em relação à semana passada
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Receita Mensal
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-gray-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              R$ {stats.monthlyRevenue.toLocaleString("pt-BR")}
+            </div>
+            <p className="text-xs text-green-600 flex items-center mt-1">
+              <TrendingUp className="mr-1 h-3 w-3" />
+              +18% em relação ao mês anterior
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Taxa de Crescimento
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-gray-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {stats.growthRate}%
+            </div>
+            <p className="text-xs text-green-600 flex items-center mt-1">
+              +2.1% em relação ao mês anterior
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
+      {/* Recent Patients */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Patients */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -150,25 +266,32 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {recentPatients.length === 0 && <p>Nenhum paciente recente encontrado.</p>}
               {recentPatients.map((patient) => (
                 <div key={patient.id} className="flex items-center space-x-4">
                   <Avatar>
-                    <AvatarImage src={`/placeholder.svg?height=40&width=40`} />
+                    <AvatarImage src="/placeholder.svg?height=40&width=40" />
                     <AvatarFallback>
-                      {patient.name
+                      {patient.nome
                         .split(" ")
                         .map((n) => n[0])
                         .join("")}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{patient.name}</p>
-                    <p className="text-sm text-gray-500 truncate">{patient.email}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {patient.nome}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {patient.email ?? "-"}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end">
-                    <Badge variant={patient.status === "Ativo" ? "default" : "secondary"}>{patient.status}</Badge>
+                    <Badge variant="default">Ativo</Badge>
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(patient.lastVisit).toLocaleDateString("pt-BR")}
+                      {patient.criado_em
+                        ? new Date(patient.criado_em).toLocaleDateString("pt-BR")
+                        : "-"}
                     </p>
                   </div>
                 </div>
@@ -189,29 +312,36 @@ export default function DashboardPage() {
               <Calendar className="mr-2 h-5 w-5" />
               Consultas de Hoje
             </CardTitle>
-            <CardDescription>Agenda do dia {new Date().toLocaleDateString("pt-BR")}</CardDescription>
+            <CardDescription>
+              Agenda do dia {new Date().toLocaleDateString("pt-BR")}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {todayAppointments.length === 0 && <p>Nenhuma consulta para hoje.</p>}
               {todayAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div
+                  key={appointment.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
                       <Clock className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{appointment.patient}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {appointment.paciente_nome}
+                      </p>
                       <p className="text-sm text-gray-500">
-                        {appointment.time} - {appointment.type}
+                        {appointment.hora} - {appointment.tipo_consulta}
                       </p>
                     </div>
                   </div>
                   <Badge
-                    variant={appointment.status === "Confirmado" ? "default" : "secondary"}
+                    variant={appointment.observacoes ? "default" : "secondary"}
                     className="flex items-center"
                   >
-                    {appointment.status === "Confirmado" && <CheckCircle className="mr-1 h-3 w-3" />}
-                    {appointment.status}
+                    {appointment.observacoes || "Sem observações"}
                   </Badge>
                 </div>
               ))}

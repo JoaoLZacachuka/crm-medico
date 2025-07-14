@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -78,14 +79,46 @@ export default function NewPatientPage() {
       return
     }
 
-    // Simular cadastro (aqui seria a integração com Supabase)
-    setTimeout(() => {
+    // Pega o usuário atual autenticado
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      setError("Erro ao identificar usuário autenticado.")
       setIsLoading(false)
+      return
+    }
+
+    // Monta o payload para inserir no Supabase, incluindo user_id
+    const payload = {
+      user_id: user.id, // IMPORTANTÍSSIMO para passar o RLS
+      nome: formData.name,
+      email: formData.email,
+      telefone: formData.phone,
+      data_nascimento: formData.birthDate,
+      cpf: formData.cpf,
+      genero: formData.gender,
+      endereco: formData.address || null,
+      cidade: formData.city || null,
+      estado: formData.state || null,
+      cep: formData.zipCode || null,
+      observacoes: formData.observations || null,
+    }
+
+    const { data, error } = await supabase.from("patients").insert([payload])
+
+    if (error) {
+      setError("Erro ao cadastrar paciente: " + error.message)
+      setIsLoading(false)
+    } else {
       setSuccess(true)
+      setIsLoading(false)
       setTimeout(() => {
         router.push("/dashboard/pacientes")
       }, 2000)
-    }, 1500)
+    }
   }
 
   const handleInputChange = (field: string, value: string) => {

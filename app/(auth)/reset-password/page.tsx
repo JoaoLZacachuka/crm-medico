@@ -1,10 +1,9 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,10 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
 
+import { updatePassword } from "@/app/actions/supabase-actions"
+import { supabase } from "@/lib/supabase/client"
+
 export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
-    code: "",
     password: "",
     confirmPassword: "",
   })
@@ -24,13 +25,17 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (error) setError("")
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
 
-    // Validações
-    if (!formData.code || !formData.password || !formData.confirmPassword) {
+    if (!formData.password || !formData.confirmPassword) {
       setError("Por favor, preencha todos os campos")
       setIsLoading(false)
       return
@@ -48,19 +53,17 @@ export default function ResetPasswordPage() {
       return
     }
 
-    // Simular reset de senha (aqui seria a integração com Supabase)
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      await updatePassword(formData.password)
       setSuccess(true)
       setTimeout(() => {
         router.push("/login")
       }, 2000)
-    }, 1500)
-  }
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (error) setError("")
+    } catch (err: any) {
+      setError(err.message || "Erro ao redefinir a senha")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (success) {
@@ -87,7 +90,7 @@ export default function ResetPasswordPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold text-gray-900">Redefinir senha</CardTitle>
         <CardDescription className="text-gray-600">
-          Digite o código recebido por e-mail e sua nova senha
+          Digite sua nova senha
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
@@ -97,20 +100,6 @@ export default function ResetPasswordPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor="code">Código de verificação</Label>
-            <Input
-              id="code"
-              type="text"
-              placeholder="Digite o código de 6 dígitos"
-              value={formData.code}
-              onChange={(e) => handleInputChange("code", e.target.value)}
-              required
-              disabled={isLoading}
-              maxLength={6}
-            />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Nova senha</Label>
