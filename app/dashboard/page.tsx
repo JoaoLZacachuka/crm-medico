@@ -2,10 +2,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, Calendar, Clock, TrendingUp, Plus } from "lucide-react"
+import { Users, Calendar, Clock, Plus, DollarSign } from "lucide-react"
 import Link from "next/link"
 
-// Mock data
 const stats = [
   {
     title: "Total de Pacientes",
@@ -33,14 +32,14 @@ const stats = [
     value: "R$ 45.230",
     change: "+8%",
     changeType: "positive" as const,
-    icon: TrendingUp,
+    icon: DollarSign,
   },
 ]
 
 const recentPatients = [
   {
     id: "1",
-    name: "Sarah Johnson",
+    name: "Maria Silva",
     age: 34,
     lastVisit: "15/01/2024",
     condition: "Consulta de Rotina",
@@ -48,7 +47,7 @@ const recentPatients = [
   },
   {
     id: "2",
-    name: "Michael Chen",
+    name: "João Santos",
     age: 45,
     lastVisit: "14/01/2024",
     condition: "Acompanhamento Hipertensão",
@@ -56,7 +55,7 @@ const recentPatients = [
   },
   {
     id: "3",
-    name: "Emily Davis",
+    name: "Ana Costa",
     age: 28,
     lastVisit: "13/01/2024",
     condition: "Exame Físico Anual",
@@ -64,7 +63,7 @@ const recentPatients = [
   },
   {
     id: "4",
-    name: "Robert Wilson",
+    name: "Carlos Oliveira",
     age: 52,
     lastVisit: "12/01/2024",
     condition: "Controle de Diabetes",
@@ -75,21 +74,21 @@ const recentPatients = [
 const upcomingAppointments = [
   {
     id: "1",
-    patient: "Lisa Anderson",
+    patient: "Lucia Ferreira",
     time: "09:00",
     type: "Consulta",
     duration: "30 min",
   },
   {
     id: "2",
-    patient: "David Brown",
+    patient: "Pedro Almeida",
     time: "10:30",
     type: "Retorno",
     duration: "15 min",
   },
   {
     id: "3",
-    patient: "Maria Garcia",
+    patient: "Fernanda Lima",
     time: "14:00",
     type: "Exame Físico",
     duration: "45 min",
@@ -102,18 +101,18 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Painel</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Bem-vindo de volta, Dr. Silva</p>
         </div>
         <div className="flex space-x-3">
           <Button asChild>
-            <Link href="/dashboard/patients/new">
+            <Link href="/dashboard/novo-paciente">
               <Plus className="mr-2 h-4 w-4" />
               Novo Paciente
             </Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/dashboard/appointments">
+            <Link href="/dashboard/consultas">
               <Calendar className="mr-2 h-4 w-4" />
               Agendar
             </Link>
@@ -124,7 +123,7 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.title}>
+          <Card key={stat.title} className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-gray-400" />
@@ -144,7 +143,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Recent Patients */}
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle>Pacientes Recentes</CardTitle>
             <CardDescription>Últimas consultas e visitas de pacientes</CardDescription>
@@ -152,7 +151,10 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {recentPatients.map((patient) => (
-                <div key={patient.id} className="flex items-center space-x-4">
+                <div
+                  key={patient.id}
+                  className="flex items-center space-x-4 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <Avatar>
                     <AvatarImage src={`/placeholder.svg?height=40&width=40`} />
                     <AvatarFallback>
@@ -165,7 +167,7 @@ export default function DashboardPage() {
                   <div className="flex-1 space-y-1">
                     <p className="text-sm font-medium leading-none">{patient.name}</p>
                     <p className="text-sm text-gray-500">
-                      Age {patient.age} • {patient.condition}
+                      {patient.age} anos • {patient.condition}
                     </p>
                   </div>
                   <div className="text-right">
@@ -179,14 +181,14 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <Button variant="outline" className="w-full bg-transparent" asChild>
-                <Link href="/dashboard/patients">Ver Todos os Pacientes</Link>
+                <Link href="/dashboard/pacientes">Ver Todos os Pacientes</Link>
               </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Today's Appointments */}
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle>Consultas de Hoje</CardTitle>
             <CardDescription>Consultas agendadas para hoje</CardDescription>
@@ -194,7 +196,10 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {upcomingAppointments.map((appointment) => (
-                <div key={appointment.id} className="flex items-center justify-between">
+                <div
+                  key={appointment.id}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <div className="space-y-1">
                     <p className="text-sm font-medium leading-none">{appointment.patient}</p>
                     <p className="text-sm text-gray-500">
@@ -212,7 +217,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <Button variant="outline" className="w-full bg-transparent" asChild>
-                <Link href="/dashboard/appointments">Ver Todas as Consultas</Link>
+                <Link href="/dashboard/consultas">Ver Todas as Consultas</Link>
               </Button>
             </div>
           </CardContent>

@@ -2,12 +2,13 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MediCRM - Gestão de Consultórios Médicos",
-  description: "Solução completa de CRM para clínicas médicas e consultórios",
+  title: "MediCRM - Sistema de Gestão Médica",
+  description: "Sistema completo para gestão de clínicas e consultórios médicos",
     generator: 'v0.dev'
 }
 
@@ -17,8 +18,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="pt-BR">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
