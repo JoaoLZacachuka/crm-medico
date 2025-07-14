@@ -1,162 +1,313 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, Eye, Plus, Calendar, Clock, Users } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Search,
+  Calendar,
+  CalendarPlus,
+  Filter,
+  Clock,
+  Stethoscope,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+} from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
+// Dados simulados
 const appointments = [
   {
-    id: "1",
+    id: 1,
     patient: "Maria Silva",
-    doctor: "Dr. Silva",
-    date: "15/01/2024",
+    doctor: "Dr. João Santos",
+    date: "2024-01-20",
     time: "09:00",
-    duration: "30 min",
     type: "Consulta",
     status: "Agendado",
+    observations: "Consulta de rotina",
   },
   {
-    id: "2",
-    patient: "João Santos",
-    doctor: "Dr. Silva",
-    date: "15/01/2024",
-    time: "10:30",
-    duration: "15 min",
-    type: "Retorno",
-    status: "Concluído",
-  },
-  {
-    id: "3",
-    patient: "Ana Costa",
-    doctor: "Dr. Silva",
-    date: "15/01/2024",
-    time: "14:00",
-    duration: "45 min",
-    type: "Exame",
-    status: "Agendado",
-  },
-  {
-    id: "4",
+    id: 2,
     patient: "Carlos Oliveira",
-    doctor: "Dr. Silva",
-    date: "16/01/2024",
-    time: "08:30",
-    duration: "30 min",
-    type: "Consulta",
-    status: "Agendado",
-  },
-  {
-    id: "5",
-    patient: "Lucia Ferreira",
-    doctor: "Dr. Silva",
-    date: "16/01/2024",
-    time: "11:00",
-    duration: "20 min",
+    doctor: "Dr. Ana Costa",
+    date: "2024-01-20",
+    time: "10:30",
     type: "Retorno",
-    status: "Cancelado",
+    status: "Confirmado",
+    observations: "Acompanhamento pós-cirúrgico",
   },
   {
-    id: "6",
+    id: 3,
+    patient: "Lucia Ferreira",
+    doctor: "Dr. João Santos",
+    date: "2024-01-20",
+    time: "14:00",
+    type: "Exame",
+    status: "Concluído",
+    observations: "Exame de rotina realizado",
+  },
+  {
+    id: 4,
     patient: "Pedro Almeida",
-    doctor: "Dr. Silva",
-    date: "16/01/2024",
-    time: "15:30",
-    duration: "30 min",
+    doctor: "Dr. Ana Costa",
+    date: "2024-01-21",
+    time: "08:30",
     type: "Consulta",
+    status: "Cancelado",
+    observations: "Cancelado pelo paciente",
+  },
+  {
+    id: 5,
+    patient: "Sofia Lima",
+    doctor: "Dr. João Santos",
+    date: "2024-01-21",
+    time: "15:30",
+    type: "Emergência",
     status: "Agendado",
+    observations: "Atendimento de urgência",
   },
 ]
 
-export default function ConsultasPage() {
+const doctors = ["Dr. João Santos", "Dr. Ana Costa", "Dr. Pedro Silva"]
+const appointmentTypes = ["Consulta", "Retorno", "Exame", "Emergência"]
+
+const stats = [
+  {
+    title: "Consultas Hoje",
+    value: "12",
+    icon: Calendar,
+    color: "text-blue-600",
+  },
+  {
+    title: "Confirmadas",
+    value: "8",
+    icon: Clock,
+    color: "text-green-600",
+  },
+  {
+    title: "Pendentes",
+    value: "3",
+    icon: Clock,
+    color: "text-yellow-600",
+  },
+  {
+    title: "Canceladas",
+    value: "1",
+    icon: Clock,
+    color: "text-red-600",
+  },
+]
+
+export default function AppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("todos")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [doctorFilter, setDoctorFilter] = useState("all")
+  const [dateFilter, setDateFilter] = useState("")
+  const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false)
+  const [newAppointment, setNewAppointment] = useState({
+    patient: "",
+    doctor: "",
+    date: "",
+    time: "",
+    type: "",
+    observations: "",
+  })
 
   const filteredAppointments = appointments.filter((appointment) => {
     const matchesSearch =
       appointment.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
       appointment.doctor.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "todos" || appointment.status.toLowerCase() === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesStatus = statusFilter === "all" || appointment.status === statusFilter
+    const matchesDoctor = doctorFilter === "all" || appointment.doctor === doctorFilter
+    const matchesDate = !dateFilter || appointment.date === dateFilter
+
+    return matchesSearch && matchesStatus && matchesDoctor && matchesDate
   })
 
-  const getStatusVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "agendado":
-        return "default"
-      case "concluído":
-        return "secondary"
-      case "cancelado":
-        return "destructive"
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Agendado":
+        return "bg-blue-100 text-blue-800"
+      case "Confirmado":
+        return "bg-green-100 text-green-800"
+      case "Concluído":
+        return "bg-gray-100 text-gray-800"
+      case "Cancelado":
+        return "bg-red-100 text-red-800"
       default:
-        return "outline"
+        return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "Consulta":
+        return "bg-blue-100 text-blue-800"
+      case "Retorno":
+        return "bg-green-100 text-green-800"
+      case "Exame":
+        return "bg-purple-100 text-purple-800"
+      case "Emergência":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const handleNewAppointment = () => {
+    // Aqui seria a integração com Supabase
+    console.log("Nova consulta:", newAppointment)
+    setIsNewAppointmentOpen(false)
+    setNewAppointment({
+      patient: "",
+      doctor: "",
+      date: "",
+      time: "",
+      type: "",
+      observations: "",
+    })
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Consultas</h1>
-          <p className="text-gray-600">Gerencie a agenda de consultas da clínica</p>
+          <p className="mt-2 text-gray-600">Gerencie a agenda de consultas</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Consulta
-        </Button>
+        <Dialog open={isNewAppointmentOpen} onOpenChange={setIsNewAppointmentOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Nova Consulta
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Agendar Nova Consulta</DialogTitle>
+              <DialogDescription>Preencha os dados para agendar uma nova consulta</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="patient">Paciente</Label>
+                <Input
+                  id="patient"
+                  placeholder="Nome do paciente"
+                  value={newAppointment.patient}
+                  onChange={(e) => setNewAppointment((prev) => ({ ...prev, patient: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="doctor">Médico</Label>
+                <Select
+                  value={newAppointment.doctor}
+                  onValueChange={(value) => setNewAppointment((prev) => ({ ...prev, doctor: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o médico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor} value={doctor}>
+                        {doctor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">Data</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={newAppointment.date}
+                    onChange={(e) => setNewAppointment((prev) => ({ ...prev, date: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="time">Horário</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={newAppointment.time}
+                    onChange={(e) => setNewAppointment((prev) => ({ ...prev, time: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="type">Tipo de Consulta</Label>
+                <Select
+                  value={newAppointment.type}
+                  onValueChange={(value) => setNewAppointment((prev) => ({ ...prev, type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appointmentTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="observations">Observações</Label>
+                <Textarea
+                  id="observations"
+                  placeholder="Observações sobre a consulta"
+                  value={newAppointment.observations}
+                  onChange={(e) => setNewAppointment((prev) => ({ ...prev, observations: e.target.value }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleNewAppointment}>
+                Agendar Consulta
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hoje</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">consultas agendadas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Esta Semana</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">32</div>
-            <p className="text-xs text-muted-foreground">+12% vs semana passada</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">aguardando confirmação</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxa de Presença</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">92%</div>
-            <p className="text-xs text-muted-foreground">+2% vs mês passado</p>
-          </CardContent>
-        </Card>
+        {stats.map((stat) => (
+          <Card key={stat.title}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
+              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Appointments Table */}
+      {/* Filters and Table */}
       <Card>
         <CardHeader>
           <CardTitle>Agenda de Consultas</CardTitle>
@@ -165,24 +316,45 @@ export default function ConsultasPage() {
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Buscar consultas..."
+                placeholder="Buscar por paciente ou médico..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className="pl-10"
               />
             </div>
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full sm:w-[180px]"
+            />
+            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Médico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Médicos</SelectItem>
+                {doctors.map((doctor) => (
+                  <SelectItem key={doctor} value={doctor}>
+                    {doctor}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="agendado">Agendado</SelectItem>
-                <SelectItem value="concluído">Concluído</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="Agendado">Agendado</SelectItem>
+                <SelectItem value="Confirmado">Confirmado</SelectItem>
+                <SelectItem value="Concluído">Concluído</SelectItem>
+                <SelectItem value="Cancelado">Cancelado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -194,19 +366,19 @@ export default function ConsultasPage() {
                 <TableRow>
                   <TableHead>Paciente</TableHead>
                   <TableHead>Médico</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Horário</TableHead>
+                  <TableHead>Data e Horário</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
+                  <TableHead>Observações</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredAppointments.map((appointment) => (
-                  <TableRow key={appointment.id} className="hover:bg-muted/50">
+                  <TableRow key={appointment.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-center space-x-3">
-                        <Avatar className="h-8 w-8">
+                        <Avatar>
                           <AvatarImage src={`/placeholder.svg?height=32&width=32`} />
                           <AvatarFallback>
                             {appointment.patient
@@ -215,28 +387,55 @@ export default function ConsultasPage() {
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="font-medium">{appointment.patient}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{appointment.doctor}</TableCell>
-                    <TableCell>{appointment.date}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{appointment.time}</div>
-                        <div className="text-sm text-muted-foreground">{appointment.duration}</div>
+                        <div>
+                          <div className="font-medium text-gray-900">{appointment.patient}</div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{appointment.type}</Badge>
+                      <div className="flex items-center space-x-2">
+                        <Stethoscope className="h-4 w-4 text-blue-600" />
+                        <span>{appointment.doctor}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(appointment.status)}>{appointment.status}</Badge>
+                      <div className="text-sm">
+                        <div className="font-medium">{new Date(appointment.date).toLocaleDateString("pt-BR")}</div>
+                        <div className="text-gray-500 flex items-center">
+                          <Clock className="mr-1 h-3 w-3" />
+                          {appointment.time}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver detalhes
-                      </Button>
+                      <Badge className={getTypeColor(appointment.type)}>{appointment.type}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(appointment.status)}>{appointment.status}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{appointment.observations}</TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalhes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Cancelar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -246,7 +445,9 @@ export default function ConsultasPage() {
 
           {filteredAppointments.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">Nenhuma consulta encontrada.</p>
+              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma consulta encontrada</h3>
+              <p className="mt-1 text-sm text-gray-500">Tente ajustar os filtros ou agende uma nova consulta.</p>
             </div>
           )}
         </CardContent>

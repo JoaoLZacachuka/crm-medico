@@ -3,243 +3,357 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UserPlus, Save, ArrowLeft } from "lucide-react"
+import { ArrowLeft, Loader2, UserPlus } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 
-export default function NovoPacientePage() {
-  const router = useRouter()
+const brazilianStates = [
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
+]
+
+export default function NewPatientPage() {
   const [formData, setFormData] = useState({
-    nome: "",
+    name: "",
     email: "",
-    dataNascimento: "",
-    telefone: "",
+    phone: "",
+    birthDate: "",
     cpf: "",
-    genero: "",
-    endereco: "",
-    cidade: "",
-    estado: "",
-    cep: "",
-    observacoes: "",
+    gender: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    observations: "",
   })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+  const router = useRouter()
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    // Validações básicas
+    const requiredFields = ["name", "email", "phone", "birthDate", "cpf", "gender"]
+    const missingFields = requiredFields.filter((field) => !formData[field as keyof typeof formData])
+
+    if (missingFields.length > 0) {
+      setError("Por favor, preencha todos os campos obrigatórios")
+      setIsLoading(false)
+      return
+    }
+
+    // Simular cadastro (aqui seria a integração com Supabase)
+    setTimeout(() => {
+      setIsLoading(false)
+      setSuccess(true)
+      setTimeout(() => {
+        router.push("/dashboard/pacientes")
+      }, 2000)
+    }, 1500)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Aqui você implementaria a lógica para salvar o paciente
-    console.log("Dados do paciente:", formData)
-    // Simular sucesso e redirecionar
-    alert("Paciente cadastrado com sucesso!")
-    router.push("/dashboard/pacientes")
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+    if (error) setError("")
+  }
+
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "")
+    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+  }
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, "")
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3")
+  }
+
+  const formatZipCode = (value: string) => {
+    const numbers = value.replace(/\D/g, "")
+    return numbers.replace(/(\d{5})(\d{3})/, "$1-$2")
+  }
+
+  if (success) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card className="shadow-xl border-0">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Paciente cadastrado com sucesso!</h3>
+              <p className="text-gray-600 mb-4">Redirecionando para a lista de pacientes...</p>
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/dashboard/pacientes">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Voltar
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Novo Paciente</h1>
-            <p className="text-gray-600">Cadastre um novo paciente no sistema</p>
-          </div>
+      <div className="flex items-center space-x-4">
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/pacientes">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Novo Paciente</h1>
+          <p className="mt-2 text-gray-600">Cadastre um novo paciente no sistema</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Informações Pessoais */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <UserPlus className="mr-2 h-5 w-5" />
-              Informações Pessoais
-            </CardTitle>
-            <CardDescription>Dados básicos do paciente</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome Completo *</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => handleInputChange("nome", e.target.value)}
-                  placeholder="Digite o nome completo"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  placeholder="exemplo@email.com"
-                />
-              </div>
-            </div>
+      <div className="max-w-4xl">
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-6">
+            {/* Informações Pessoais */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Informações Pessoais
+                </CardTitle>
+                <CardDescription>Dados básicos do paciente</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dataNascimento">Data de Nascimento *</Label>
-                <Input
-                  id="dataNascimento"
-                  type="date"
-                  value={formData.dataNascimento}
-                  onChange={(e) => handleInputChange("dataNascimento", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="telefone">Telefone *</Label>
-                <Input
-                  id="telefone"
-                  value={formData.telefone}
-                  onChange={(e) => handleInputChange("telefone", e.target.value)}
-                  placeholder="(11) 99999-9999"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cpf">CPF *</Label>
-                <Input
-                  id="cpf"
-                  value={formData.cpf}
-                  onChange={(e) => handleInputChange("cpf", e.target.value)}
-                  placeholder="000.000.000-00"
-                  required
-                />
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome completo *</Label>
+                    <Input
+                      id="name"
+                      placeholder="João Silva"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="genero">Gênero</Label>
-                <Select value={formData.genero} onValueChange={(value) => handleInputChange("genero", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o gênero" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="masculino">Masculino</SelectItem>
-                    <SelectItem value="feminino">Feminino</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                    <SelectItem value="nao-informar">Prefiro não informar</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="joao@email.com"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
 
-        {/* Endereço */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Endereço</CardTitle>
-            <CardDescription>Informações de localização do paciente</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="endereco">Endereço Completo</Label>
-              <Input
-                id="endereco"
-                value={formData.endereco}
-                onChange={(e) => handleInputChange("endereco", e.target.value)}
-                placeholder="Rua, número, complemento"
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefone *</Label>
+                    <Input
+                      id="phone"
+                      placeholder="(11) 99999-9999"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", formatPhone(e.target.value))}
+                      required
+                      disabled={isLoading}
+                      maxLength={15}
+                    />
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cidade">Cidade</Label>
-                <Input
-                  id="cidade"
-                  value={formData.cidade}
-                  onChange={(e) => handleInputChange("cidade", e.target.value)}
-                  placeholder="Nome da cidade"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="estado">Estado</Label>
-                <Select value={formData.estado} onValueChange={(value) => handleInputChange("estado", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SP">São Paulo</SelectItem>
-                    <SelectItem value="RJ">Rio de Janeiro</SelectItem>
-                    <SelectItem value="MG">Minas Gerais</SelectItem>
-                    <SelectItem value="RS">Rio Grande do Sul</SelectItem>
-                    <SelectItem value="PR">Paraná</SelectItem>
-                    <SelectItem value="SC">Santa Catarina</SelectItem>
-                    <SelectItem value="BA">Bahia</SelectItem>
-                    <SelectItem value="GO">Goiás</SelectItem>
-                    <SelectItem value="PE">Pernambuco</SelectItem>
-                    <SelectItem value="CE">Ceará</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cep">CEP</Label>
-                <Input
-                  id="cep"
-                  value={formData.cep}
-                  onChange={(e) => handleInputChange("cep", e.target.value)}
-                  placeholder="00000-000"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="birthDate">Data de nascimento *</Label>
+                    <Input
+                      id="birthDate"
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) => handleInputChange("birthDate", e.target.value)}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
 
-        {/* Observações */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Observações Adicionais</CardTitle>
-            <CardDescription>Informações complementares sobre o paciente</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea
-                id="observacoes"
-                value={formData.observacoes}
-                onChange={(e) => handleInputChange("observacoes", e.target.value)}
-                placeholder="Informações médicas relevantes, alergias, medicamentos em uso, etc."
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="cpf">CPF *</Label>
+                    <Input
+                      id="cpf"
+                      placeholder="000.000.000-00"
+                      value={formData.cpf}
+                      onChange={(e) => handleInputChange("cpf", formatCPF(e.target.value))}
+                      required
+                      disabled={isLoading}
+                      maxLength={14}
+                    />
+                  </div>
+                </div>
 
-        {/* Actions */}
-        <div className="flex justify-end space-x-4">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/dashboard/pacientes">Cancelar</Link>
-          </Button>
-          <Button type="submit">
-            <Save className="mr-2 h-4 w-4" />
-            Cadastrar Paciente
-          </Button>
-        </div>
-      </form>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gênero *</Label>
+                  <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o gênero" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Masculino">Masculino</SelectItem>
+                      <SelectItem value="Feminino">Feminino</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                      <SelectItem value="Prefiro não informar">Prefiro não informar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Endereço */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Endereço</CardTitle>
+                <CardDescription>Informações de localização (opcional)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="address">Endereço</Label>
+                    <Input
+                      id="address"
+                      placeholder="Rua das Flores, 123"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="zipCode">CEP</Label>
+                    <Input
+                      id="zipCode"
+                      placeholder="00000-000"
+                      value={formData.zipCode}
+                      onChange={(e) => handleInputChange("zipCode", formatZipCode(e.target.value))}
+                      disabled={isLoading}
+                      maxLength={9}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Cidade</Label>
+                    <Input
+                      id="city"
+                      placeholder="São Paulo"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="state">Estado</Label>
+                    <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {brazilianStates.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Observações */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Observações Médicas</CardTitle>
+                <CardDescription>Informações adicionais sobre o paciente</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="observations">Observações</Label>
+                  <Textarea
+                    id="observations"
+                    placeholder="Alergias, medicamentos em uso, histórico médico relevante..."
+                    value={formData.observations}
+                    onChange={(e) => handleInputChange("observations", e.target.value)}
+                    disabled={isLoading}
+                    rows={4}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-4 sm:justify-end">
+              <Button type="button" variant="outline" asChild disabled={isLoading}>
+                <Link href="/dashboard/pacientes">Cancelar</Link>
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Cadastrando...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Cadastrar Paciente
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

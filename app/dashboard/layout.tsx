@@ -17,23 +17,25 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   Stethoscope,
+  LayoutDashboard,
   Users,
   Calendar,
   UserPlus,
   DollarSign,
+  User,
   Settings,
   LogOut,
   Menu,
   X,
-  LayoutDashboard,
 } from "lucide-react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Pacientes", href: "/dashboard/pacientes", icon: Users },
-  { name: "Consultas", href: "/dashboard/consultas", icon: Calendar },
   { name: "Novo Paciente", href: "/dashboard/novo-paciente", icon: UserPlus },
+  { name: "Consultas", href: "/dashboard/consultas", icon: Calendar },
   { name: "Financeiro", href: "/dashboard/financeiro", icon: DollarSign },
+  { name: "Perfil", href: "/dashboard/perfil", icon: User },
 ]
 
 export default function DashboardLayout({
@@ -82,7 +84,7 @@ export default function DashboardLayout({
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200 shadow-sm">
+        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4 border-b">
             <div className="flex items-center space-x-2">
               <Stethoscope className="h-8 w-8 text-blue-600" />
@@ -115,6 +117,7 @@ export default function DashboardLayout({
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
+            <span className="sr-only">Abrir sidebar</span>
           </Button>
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
@@ -137,9 +140,11 @@ export default function DashboardLayout({
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Configurações</span>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/perfil">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Perfil</span>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <LogOut className="mr-2 h-4 w-4" />

@@ -10,16 +10,18 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
-    email: "",
+    code: "",
     password: "",
+    confirmPassword: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,17 +29,32 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
 
-    // Validação básica
-    if (!formData.email || !formData.password) {
+    // Validações
+    if (!formData.code || !formData.password || !formData.confirmPassword) {
       setError("Por favor, preencha todos os campos")
       setIsLoading(false)
       return
     }
 
-    // Simular login (aqui seria a integração com Supabase)
+    if (formData.password !== formData.confirmPassword) {
+      setError("As senhas não coincidem")
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres")
+      setIsLoading(false)
+      return
+    }
+
+    // Simular reset de senha (aqui seria a integração com Supabase)
     setTimeout(() => {
       setIsLoading(false)
-      router.push("/dashboard")
+      setSuccess(true)
+      setTimeout(() => {
+        router.push("/login")
+      }, 2000)
     }, 1500)
   }
 
@@ -46,11 +63,32 @@ export default function LoginPage() {
     if (error) setError("")
   }
 
+  if (success) {
+    return (
+      <Card className="shadow-xl border-0">
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Senha alterada com sucesso!</h3>
+            <p className="text-gray-600 mb-4">Redirecionando para o login...</p>
+            <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="shadow-xl border-0">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-gray-900">Entrar na sua conta</CardTitle>
-        <CardDescription className="text-gray-600">Acesse o painel de gestão do seu consultório</CardDescription>
+        <CardTitle className="text-2xl font-bold text-gray-900">Redefinir senha</CardTitle>
+        <CardDescription className="text-gray-600">
+          Digite o código recebido por e-mail e sua nova senha
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -61,25 +99,26 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
+            <Label htmlFor="code">Código de verificação</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="doutor@clinica.com"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
+              id="code"
+              type="text"
+              placeholder="Digite o código de 6 dígitos"
+              value={formData.code}
+              onChange={(e) => handleInputChange("code", e.target.value)}
               required
               disabled={isLoading}
+              maxLength={6}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Nova senha</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Digite sua senha"
+                placeholder="Mínimo 6 caracteres"
                 value={formData.password}
                 onChange={(e) => handleInputChange("password", e.target.value)}
                 required
@@ -102,10 +141,17 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="text-right">
-            <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-              Esqueceu a senha?
-            </Link>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Digite a senha novamente"
+              value={formData.confirmPassword}
+              onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+              required
+              disabled={isLoading}
+            />
           </div>
         </CardContent>
 
@@ -114,19 +160,17 @@ export default function LoginPage() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Entrando...
+                Alterando senha...
               </>
             ) : (
-              "Entrar"
+              "Alterar senha"
             )}
           </Button>
 
-          <p className="text-center text-sm text-gray-600">
-            Não tem uma conta?{" "}
-            <Link href="/signup" className="text-blue-600 hover:underline font-medium">
-              Cadastre-se
-            </Link>
-          </p>
+          <Link href="/login" className="flex items-center justify-center text-sm text-gray-600 hover:text-gray-900">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para o login
+          </Link>
         </CardFooter>
       </form>
     </Card>

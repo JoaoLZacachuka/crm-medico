@@ -1,325 +1,516 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, Banknote, Calendar, Download, Plus } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  Search,
+  Filter,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+} from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-const financialStats = [
+// Dados simulados
+const financialData = [
   {
-    title: "Receita Total",
+    id: 1,
+    patient: "Maria Silva",
+    description: "Consulta médica",
+    amount: 150.0,
+    date: "2024-01-20",
+    status: "Pago",
+    method: "PIX",
+    type: "Receita",
+  },
+  {
+    id: 2,
+    patient: "João Santos",
+    description: "Exame de rotina",
+    amount: 200.0,
+    date: "2024-01-19",
+    status: "Pendente",
+    method: "Cartão",
+    type: "Receita",
+  },
+  {
+    id: 3,
+    patient: "-",
+    description: "Material médico",
+    amount: 350.0,
+    date: "2024-01-18",
+    status: "Pago",
+    method: "Transferência",
+    type: "Despesa",
+  },
+  {
+    id: 4,
+    patient: "Ana Costa",
+    description: "Consulta especializada",
+    amount: 300.0,
+    date: "2024-01-17",
+    status: "Pago",
+    method: "Dinheiro",
+    type: "Receita",
+  },
+  {
+    id: 5,
+    patient: "-",
+    description: "Aluguel do consultório",
+    amount: 2500.0,
+    date: "2024-01-15",
+    status: "Pago",
+    method: "Transferência",
+    type: "Despesa",
+  },
+]
+
+const stats = [
+  {
+    title: "Receita Mensal",
     value: "R$ 45.230",
     change: "+12%",
     changeType: "positive" as const,
-    icon: DollarSign,
+    icon: TrendingUp,
+    color: "text-green-600",
   },
   {
-    title: "Despesas",
+    title: "Despesas Mensais",
     value: "R$ 18.450",
-    change: "+3%",
-    changeType: "negative" as const,
+    change: "+5%",
+    changeType: "positive" as const,
     icon: TrendingDown,
+    color: "text-red-600",
   },
   {
     title: "Lucro Líquido",
     value: "R$ 26.780",
     change: "+18%",
     changeType: "positive" as const,
-    icon: TrendingUp,
+    icon: DollarSign,
+    color: "text-blue-600",
   },
   {
-    title: "Consultas Pagas",
-    value: "234",
-    change: "+8%",
-    changeType: "positive" as const,
-    icon: CreditCard,
+    title: "Pagamentos Pendentes",
+    value: "R$ 3.200",
+    change: "-8%",
+    changeType: "negative" as const,
+    icon: DollarSign,
+    color: "text-yellow-600",
   },
 ]
 
-const payments = [
-  {
-    id: "1",
-    patient: "Maria Silva",
-    service: "Consulta Cardiológica",
-    amount: "R$ 180,00",
-    date: "15/01/2024",
-    method: "Cartão de Crédito",
-    status: "Pago",
-  },
-  {
-    id: "2",
-    patient: "João Santos",
-    service: "Exame de Rotina",
-    amount: "R$ 120,00",
-    date: "14/01/2024",
-    method: "PIX",
-    status: "Pago",
-  },
-  {
-    id: "3",
-    patient: "Ana Costa",
-    service: "Consulta Dermatológica",
-    amount: "R$ 200,00",
-    date: "13/01/2024",
-    method: "Dinheiro",
-    status: "Pago",
-  },
-  {
-    id: "4",
-    patient: "Carlos Oliveira",
-    service: "Retorno Cardiológico",
-    amount: "R$ 90,00",
-    date: "12/01/2024",
-    method: "Cartão de Débito",
-    status: "Pendente",
-  },
-  {
-    id: "5",
-    patient: "Lucia Ferreira",
-    service: "Consulta Pneumológica",
-    amount: "R$ 160,00",
-    date: "11/01/2024",
-    method: "PIX",
-    status: "Pago",
-  },
-  {
-    id: "6",
-    patient: "Pedro Almeida",
-    service: "Exame Cardiológico",
-    amount: "R$ 250,00",
-    date: "10/01/2024",
-    method: "Cartão de Crédito",
-    status: "Cancelado",
-  },
-]
+const paymentMethods = ["PIX", "Cartão", "Dinheiro", "Transferência"]
 
-const monthlyData = [
-  { month: "Jan", receita: 42000, despesas: 18000 },
-  { month: "Fev", receita: 38000, despesas: 16000 },
-  { month: "Mar", receita: 45000, despesas: 19000 },
-  { month: "Abr", receita: 41000, despesas: 17000 },
-  { month: "Mai", receita: 48000, despesas: 20000 },
-  { month: "Jun", receita: 45230, despesas: 18450 },
-]
+export default function FinancialPage() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
+  const [dateFilter, setDateFilter] = useState("")
+  const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false)
+  const [newTransaction, setNewTransaction] = useState({
+    patient: "",
+    description: "",
+    amount: "",
+    date: "",
+    status: "Pago",
+    method: "",
+    type: "Receita",
+  })
 
-export default function FinanceiroPage() {
-  const getStatusVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "pago":
-        return "default"
-      case "pendente":
-        return "secondary"
-      case "cancelado":
-        return "destructive"
-      default:
-        return "outline"
-    }
+  const filteredData = financialData.filter((item) => {
+    const matchesSearch =
+      item.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter
+    const matchesType = typeFilter === "all" || item.type === typeFilter
+    const matchesDate = !dateFilter || item.date === dateFilter
+
+    return matchesSearch && matchesStatus && matchesType && matchesDate
+  })
+
+  const getStatusColor = (status: string) => {
+    return status === "Pago" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
   }
 
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method.toLowerCase()) {
-      case "pix":
-        return <Banknote className="h-4 w-4" />
-      case "dinheiro":
-        return <Banknote className="h-4 w-4" />
-      default:
+  const getTypeColor = (type: string) => {
+    return type === "Receita" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+  }
+
+  const getMethodIcon = (method: string) => {
+    switch (method) {
+      case "PIX":
+        return <Smartphone className="h-4 w-4" />
+      case "Cartão":
         return <CreditCard className="h-4 w-4" />
+      case "Dinheiro":
+        return <Banknote className="h-4 w-4" />
+      default:
+        return <DollarSign className="h-4 w-4" />
     }
   }
+
+  const handleNewTransaction = () => {
+    // Aqui seria a integração com Supabase
+    console.log("Nova transação:", newTransaction)
+    setIsNewTransactionOpen(false)
+    setNewTransaction({
+      patient: "",
+      description: "",
+      amount: "",
+      date: "",
+      status: "Pago",
+      method: "",
+      type: "Receita",
+    })
+  }
+
+  // Cálculo do gráfico simples
+  const totalReceitas = financialData
+    .filter((item) => item.type === "Receita" && item.status === "Pago")
+    .reduce((sum, item) => sum + item.amount, 0)
+
+  const totalDespesas = financialData
+    .filter((item) => item.type === "Despesa")
+    .reduce((sum, item) => sum + item.amount, 0)
+
+  const receitaPercentage = (totalReceitas / (totalReceitas + totalDespesas)) * 100
+  const despesaPercentage = (totalDespesas / (totalReceitas + totalDespesas)) * 100
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Financeiro</h1>
-          <p className="text-gray-600">Controle financeiro da clínica</p>
+          <p className="mt-2 text-gray-600">Controle financeiro do consultório</p>
         </div>
-        <div className="flex space-x-3">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Exportar
-          </Button>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Receita
-          </Button>
-        </div>
+        <Dialog open={isNewTransactionOpen} onOpenChange={setIsNewTransactionOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Transação
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Nova Transação</DialogTitle>
+              <DialogDescription>Adicione uma nova receita ou despesa</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="type">Tipo</Label>
+                <Select
+                  value={newTransaction.type}
+                  onValueChange={(value) => setNewTransaction((prev) => ({ ...prev, type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Receita">Receita</SelectItem>
+                    <SelectItem value="Despesa">Despesa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {newTransaction.type === "Receita" && (
+                <div className="space-y-2">
+                  <Label htmlFor="patient">Paciente</Label>
+                  <Input
+                    id="patient"
+                    placeholder="Nome do paciente"
+                    value={newTransaction.patient}
+                    onChange={(e) => setNewTransaction((prev) => ({ ...prev, patient: e.target.value }))}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
+                <Input
+                  id="description"
+                  placeholder="Descrição da transação"
+                  value={newTransaction.description}
+                  onChange={(e) => setNewTransaction((prev) => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Valor (R$)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={newTransaction.amount}
+                    onChange={(e) => setNewTransaction((prev) => ({ ...prev, amount: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date">Data</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={newTransaction.date}
+                    onChange={(e) => setNewTransaction((prev) => ({ ...prev, date: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="method">Método</Label>
+                  <Select
+                    value={newTransaction.method}
+                    onValueChange={(value) => setNewTransaction((prev) => ({ ...prev, method: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Método de pagamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentMethods.map((method) => (
+                        <SelectItem key={method} value={method}>
+                          {method}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={newTransaction.status}
+                    onValueChange={(value) => setNewTransaction((prev) => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pago">Pago</SelectItem>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" onClick={handleNewTransaction}>
+                Adicionar Transação
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Financial Stats */}
+      {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {financialStats.map((stat) => (
-          <Card key={stat.title} className="hover:shadow-md transition-shadow">
+        {stats.map((stat) => (
+          <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-gray-400" />
+              <stat.icon className={`h-4 w-4 ${stat.color}`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
-              <p className="text-xs text-gray-600">
-                <span className={`font-medium ${stat.changeType === "positive" ? "text-green-600" : "text-red-600"}`}>
-                  {stat.change}
-                </span>{" "}
-                em relação ao mês passado
+              <p
+                className={`text-xs flex items-center mt-1 ${
+                  stat.changeType === "positive" ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {stat.changeType === "positive" ? (
+                  <TrendingUp className="mr-1 h-3 w-3" />
+                ) : (
+                  <TrendingDown className="mr-1 h-3 w-3" />
+                )}
+                {stat.change} em relação ao mês anterior
               </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Revenue Chart */}
-        <Card className="hover:shadow-md transition-shadow">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Gráfico Visual Simples */}
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Receitas vs Despesas</CardTitle>
-            <CardDescription>Comparativo mensal dos últimos 6 meses</CardDescription>
+            <CardDescription>Distribuição financeira mensal</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {monthlyData.map((data, index) => (
-                <div key={data.month} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">{data.month}</span>
-                    <span className="text-muted-foreground">R$ {(data.receita - data.despesas).toLocaleString()}</span>
-                  </div>
-                  <div className="flex space-x-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${(data.receita / 50000) * 100}%` }}
-                      />
-                    </div>
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-red-500 h-2 rounded-full"
-                        style={{ width: `${(data.despesas / 50000) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Receita: R$ {data.receita.toLocaleString()}</span>
-                    <span>Despesas: R$ {data.despesas.toLocaleString()}</span>
-                  </div>
+              <div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-green-600">Receitas</span>
+                  <span className="font-medium">R$ {totalReceitas.toLocaleString("pt-BR")}</span>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 flex justify-center space-x-6 text-sm">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
-                <span>Receitas</span>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                  <div className="bg-green-600 h-2 rounded-full" style={{ width: `${receitaPercentage}%` }}></div>
+                </div>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-                <span>Despesas</span>
+              <div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-red-600">Despesas</span>
+                  <span className="font-medium">R$ {totalDespesas.toLocaleString("pt-BR")}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                  <div className="bg-red-600 h-2 rounded-full" style={{ width: `${despesaPercentage}%` }}></div>
+                </div>
+              </div>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Lucro Líquido</span>
+                  <span className="text-lg font-bold text-blue-600">
+                    R$ {(totalReceitas - totalDespesas).toLocaleString("pt-BR")}
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Quick Stats */}
-        <Card className="hover:shadow-md transition-shadow">
+        {/* Tabela de Transações */}
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Resumo do Mês</CardTitle>
-            <CardDescription>Estatísticas financeiras de Janeiro 2024</CardDescription>
+            <CardTitle>Transações Recentes</CardTitle>
+            <CardDescription>Histórico de receitas e despesas</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-green-800">Maior Receita</p>
-                <p className="text-lg font-bold text-green-900">R$ 250,00</p>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Buscar transações..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full sm:w-[150px]"
+              />
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[130px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="Receita">Receita</SelectItem>
+                  <SelectItem value="Despesa">Despesa</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[130px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="Pago">Pago</SelectItem>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-blue-800">Média por Consulta</p>
-                <p className="text-lg font-bold text-blue-900">R$ 165,00</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-blue-600" />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredData.map((item) => (
+                    <TableRow key={item.id} className="hover:bg-gray-50">
+                      <TableCell>
+                        <div>
+                          <div className="font-medium text-gray-900">{item.description}</div>
+                          {item.patient !== "-" && <div className="text-sm text-gray-500">{item.patient}</div>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getTypeColor(item.type)}>{item.type}</Badge>
+                          <span
+                            className={`font-medium ${item.type === "Receita" ? "text-green-600" : "text-red-600"}`}
+                          >
+                            {item.type === "Receita" ? "+" : "-"}R$ {item.amount.toFixed(2)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{new Date(item.date).toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {getMethodIcon(item.method)}
+                          <span>{item.method}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600">
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
 
-            <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-purple-800">Consultas Realizadas</p>
-                <p className="text-lg font-bold text-purple-900">234</p>
+            {filteredData.length === 0 && (
+              <div className="text-center py-8">
+                <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma transação encontrada</h3>
+                <p className="mt-1 text-sm text-gray-500">Tente ajustar os filtros ou adicione uma nova transação.</p>
               </div>
-              <Calendar className="h-8 w-8 text-purple-600" />
-            </div>
-
-            <div className="pt-4 border-t">
-              <div className="flex justify-between text-sm">
-                <span>Taxa de Conversão</span>
-                <span className="font-medium text-green-600">94%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                <div className="bg-green-500 h-2 rounded-full" style={{ width: "94%" }} />
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Payments Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Histórico de Pagamentos</CardTitle>
-              <CardDescription>Últimas transações financeiras da clínica</CardDescription>
-            </div>
-            <Select defaultValue="todos">
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar por status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Serviço</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Método</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map((payment) => (
-                  <TableRow key={payment.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{payment.patient}</TableCell>
-                    <TableCell>{payment.service}</TableCell>
-                    <TableCell className="font-medium text-green-600">{payment.amount}</TableCell>
-                    <TableCell>{payment.date}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {getPaymentMethodIcon(payment.method)}
-                        <span>{payment.method}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(payment.status)}>{payment.status}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
