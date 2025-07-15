@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { signup } from "@/app/actions/supabase-actions"
-import { SignupSuccess } from "@/components/SignupSuccess"
+import { SignupSuccess } from "@/components/ui/SignupSuccess"
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
