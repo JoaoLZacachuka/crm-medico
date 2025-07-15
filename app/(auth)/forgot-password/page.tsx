@@ -2,8 +2,6 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,14 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Loader2, Mail } from "lucide-react"
 
-import { sendResetEmail } from "@/app/actions/supabase-actions"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,11 +29,13 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      await sendResetEmail(email)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "https://seu-dominio.com/reset-password", // Substitua pela URL real do seu app
+      })
+
+      if (error) throw error
+
       setSuccess(true)
-      setTimeout(() => {
-        router.push("/reset-password")
-      }, 3000)
     } catch (err: any) {
       setError(err.message || "Erro ao enviar o e-mail")
     } finally {
@@ -54,10 +53,9 @@ export default function ForgotPasswordPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">E-mail enviado!</h3>
             <p className="text-gray-600 mb-4">
-              Enviamos um link de verificação para <strong>{email}</strong>
+              Enviamos um link de redefinição para <strong>{email}</strong>.  
+              Verifique sua caixa de entrada.
             </p>
-            <p className="text-sm text-gray-500 mb-4">Redirecionando para a página de reset...</p>
-            <Loader2 className="h-6 w-6 animate-spin mx-auto text-blue-600" />
           </div>
         </CardContent>
       </Card>
@@ -85,7 +83,7 @@ export default function ForgotPasswordPage() {
             <Input
               id="email"
               type="email"
-              placeholder="doutor@clinica.com"
+              placeholder="seu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

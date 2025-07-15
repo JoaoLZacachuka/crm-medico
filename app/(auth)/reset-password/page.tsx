@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,10 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
 
-import { updatePassword } from "@/app/actions/supabase-actions"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const accessToken = searchParams.get("access_token") || ""
+
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     password: "",
@@ -23,7 +26,12 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
+
+  useEffect(() => {
+    if (!accessToken) {
+      setError("Token de redefinição não encontrado na URL.")
+    }
+  }, [accessToken])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -53,8 +61,23 @@ export default function ResetPasswordPage() {
       return
     }
 
+    if (!accessToken) {
+      setError("Token inválido ou expirado.")
+      setIsLoading(false)
+      return
+    }
+
     try {
-      await updatePassword(formData.password)
+      // Atualiza a senha usando o token recebido por email
+      const { error: resetError } = await supabase.auth.api
+        .resetPasswordForUser(accessToken, formData.password)
+
+      if (resetError) {
+        setError(resetError.message)
+        setIsLoading(false)
+        return
+      }
+
       setSuccess(true)
       setTimeout(() => {
         router.push("/login")
