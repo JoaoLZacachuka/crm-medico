@@ -1,5 +1,3 @@
-// Página de pacientes conectada ao Supabase com paginação, filtros e ações reais
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -12,8 +10,17 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, UserPlus, Users, Eye, Filter, MoreHorizontal, Edit, Trash2 } from "lucide-react"
+import { Search, UserPlus, Users, Filter, MoreHorizontal, Edit, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<any[]>([])
@@ -24,6 +31,10 @@ export default function PatientsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const pageSize = 10
   const router = useRouter()
+
+  // Estados para edição modal
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editPatientData, setEditPatientData] = useState<any>(null)
 
   const fetchPatients = async () => {
     const from = (currentPage - 1) * pageSize
@@ -49,28 +60,68 @@ export default function PatientsPage() {
       patient.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || patient.status === statusFilter
-    const matchesPayment = paymentFilter === "all" || patient.status_pagamento === paymentFilter
+    // Como não existe status_pagamento no banco, ignorei o filtro
+    const matchesPayment = paymentFilter === "all" // || patient.status_pagamento === paymentFilter
 
     return matchesSearch && matchesStatus && matchesPayment
   })
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case "Em dia": return "bg-green-100 text-green-800"
-      case "Pendente": return "bg-yellow-100 text-yellow-800"
-      case "Atrasado": return "bg-red-100 text-red-800"
-      default: return "bg-gray-100 text-gray-800"
-    }
-  }
 
   const getStatusColor = (status: string) => {
     return status === "Ativo" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
   }
 
   const handleDelete = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir este paciente?")) return
+
     const { error } = await supabase.from("patients").delete().eq("id", id)
     if (error) alert("Erro ao excluir paciente: " + error.message)
     else fetchPatients()
+  }
+
+  // Abrir modal e preencher dados para edição
+  const handleEdit = (patient: any) => {
+    setEditPatientData({
+      id: patient.id,
+      nome: patient.nome || "",
+      email: patient.email || "",
+      telefone: patient.telefone || "",
+      genero: patient.genero || "",
+      idade: patient.idade ? patient.idade.toString() : "",
+      status: patient.status || "Ativo",
+      // Adicione mais campos se precisar
+    })
+    setIsEditModalOpen(true)
+  }
+
+  // Salvar alterações do paciente editado
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editPatientData) return
+
+    if (!editPatientData.nome.trim() || !editPatientData.email.trim()) {
+      alert("Nome e e-mail são obrigatórios.")
+      return
+    }
+
+    const { error } = await supabase
+      .from("patients")
+      .update({
+        nome: editPatientData.nome.trim(),
+        email: editPatientData.email.trim(),
+        telefone: editPatientData.telefone.trim(),
+        genero: editPatientData.genero.trim(),
+        idade: editPatientData.idade ? parseInt(editPatientData.idade) : null,
+        status: editPatientData.status,
+      })
+      .eq("id", editPatientData.id)
+
+    if (error) {
+      alert("Erro ao salvar paciente: " + error.message)
+    } else {
+      setIsEditModalOpen(false)
+      setEditPatientData(null)
+      fetchPatients()
+    }
   }
 
   return (
@@ -114,18 +165,7 @@ export default function PatientsPage() {
                 <SelectItem value="Inativo">Inativo</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Pagamento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Pagamentos</SelectItem>
-                <SelectItem value="Em dia">Em dia</SelectItem>
-                <SelectItem value="Pendente">Pendente</SelectItem>
-                <SelectItem value="Atrasado">Atrasado</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Como não tem status_pagamento, esse filtro está desativado */}
           </div>
 
           <div className="rounded-md border">
@@ -135,8 +175,6 @@ export default function PatientsPage() {
                   <TableHead>Paciente</TableHead>
                   <TableHead>Idade</TableHead>
                   <TableHead>Contato</TableHead>
-                  <TableHead>Última Consulta</TableHead>
-                  <TableHead>Status Pagamento</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -164,10 +202,6 @@ export default function PatientsPage() {
                         <div className="text-gray-500">{patient.genero}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{patient.ultima_consulta && new Date(patient.ultima_consulta).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell>
-                      <Badge className={getPaymentStatusColor(patient.status_pagamento)}>{patient.status_pagamento}</Badge>
-                    </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(patient.status)}>{patient.status}</Badge>
                     </TableCell>
@@ -179,10 +213,8 @@ export default function PatientsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/dashboard/paciente/${patient.id}`)}>
-                            <Eye className="mr-2 h-4 w-4" /> Visualizar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push(`/dashboard/paciente/${patient.id}/editar`)}>
+                          {/* Removi o botão Visualizar conforme solicitado */}
+                          <DropdownMenuItem onClick={() => handleEdit(patient)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(patient.id)}>
@@ -218,6 +250,83 @@ export default function PatientsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal de edição */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Paciente</DialogTitle>
+            <DialogDescription>Altere os dados do paciente abaixo.</DialogDescription>
+          </DialogHeader>
+
+          {editPatientData && (
+            <form onSubmit={handleSaveEdit} className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome</Label>
+                <Input
+                  id="nome"
+                  value={editPatientData.nome}
+                  onChange={(e) => setEditPatientData({ ...editPatientData, nome: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={editPatientData.email}
+                  onChange={(e) => setEditPatientData({ ...editPatientData, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input
+                  id="telefone"
+                  value={editPatientData.telefone}
+                  onChange={(e) => setEditPatientData({ ...editPatientData, telefone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="genero">Gênero</Label>
+                <Input
+                  id="genero"
+                  value={editPatientData.genero}
+                  onChange={(e) => setEditPatientData({ ...editPatientData, genero: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="idade">Idade</Label>
+                <Input
+                  id="idade"
+                  type="number"
+                  value={editPatientData.idade}
+                  onChange={(e) => setEditPatientData({ ...editPatientData, idade: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  id="status"
+                  value={editPatientData.status}
+                  onValueChange={(value) => setEditPatientData({ ...editPatientData, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter>
+                <Button type="submit">Salvar Alterações</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

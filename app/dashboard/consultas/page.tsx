@@ -12,7 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Table,
   TableBody,
@@ -66,6 +65,11 @@ interface Appointment {
   status: string
 }
 
+interface Patient {
+  id: string
+  nome: string
+}
+
 const statusOptions = ["Agendado", "Confirmado", "Concluído", "Cancelado"]
 const appointmentTypes = ["Consulta", "Retorno", "Exame", "Emergência"]
 
@@ -76,8 +80,12 @@ export default function AppointmentsPage() {
   const [dateFilter, setDateFilter] = useState("")
   const [isNewAppointmentOpen, setIsNewAppointmentOpen] = useState(false)
 
+  // Para autocomplete pacientes na nova consulta
+  const [patientSearch, setPatientSearch] = useState("")
+  const [patientSuggestions, setPatientSuggestions] = useState<Patient[]>([])
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+
   const [newAppointment, setNewAppointment] = useState({
-    paciente_nome: "",
     data: "",
     hora: "",
     tipo_consulta: "",
@@ -102,17 +110,17 @@ export default function AppointmentsPage() {
           tipo_consulta,
           observacoes,
           status,
-          paciente:patients(nome)
+          patients!inner(nome)
         `)
         .order("data", { ascending: false })
         .order("hora", { ascending: true })
 
       if (error) throw error
 
-      const mapped = (data || []).map((a) => ({
+      const mapped = (data || []).map((a: any) => ({
         id: a.id,
         paciente_id: a.paciente_id,
-        paciente_nome: a.paciente?.nome ?? "Desconhecido",
+        paciente_nome: a.patients?.nome ?? "Desconhecido",
         data: a.data,
         hora: a.hora,
         tipo_consulta: a.tipo_consulta,
@@ -130,6 +138,31 @@ export default function AppointmentsPage() {
     fetchAppointments()
   }, [])
 
+  // Buscar pacientes para autocomplete ao digitar
+  useEffect(() => {
+    if (patientSearch.trim().length === 0) {
+      setPatientSuggestions([])
+      return
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from("patients")
+        .select("id, nome")
+        .ilike("nome", `%${patientSearch}%`)
+        .limit(10)
+
+      if (error) {
+        console.error("Erro ao buscar pacientes:", error)
+        setPatientSuggestions([])
+      } else {
+        setPatientSuggestions(data || [])
+      }
+    }, 300) // debounce 300ms
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [patientSearch])
+
   // Filtra consultas conforme os filtros aplicados
   const filteredAppointments = appointments.filter((appointment) => {
     const matchesSearch = appointment.paciente_nome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -139,7 +172,6 @@ export default function AppointmentsPage() {
     return matchesSearch && matchesStatus && matchesDate
   })
 
-  // Cores para status
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Agendado":
@@ -155,7 +187,6 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Cores para tipo de consulta
   const getTypeColor = (type: string) => {
     switch (type) {
       case "Consulta":
@@ -174,8 +205,8 @@ export default function AppointmentsPage() {
   // Criar nova consulta
   const handleNewAppointment = async () => {
     try {
-      if (!newAppointment.paciente_nome.trim()) {
-        alert("Informe o nome do paciente")
+      if (!selectedPatient) {
+        alert("Selecione um paciente válido")
         return
       }
       if (!newAppointment.data.trim()) {
@@ -191,20 +222,9 @@ export default function AppointmentsPage() {
         return
       }
 
-      const { data: patientData, error: patientError } = await supabase
-        .from("patients")
-        .select("id")
-        .eq("nome", newAppointment.paciente_nome)
-        .single()
-
-      if (patientError || !patientData) {
-        alert("Paciente não encontrado. Cadastre o paciente antes.")
-        return
-      }
-
       const { error } = await supabase.from("appointments").insert([
         {
-          paciente_id: patientData.id,
+          paciente_id: selectedPatient.id,
           data: newAppointment.data,
           hora: newAppointment.hora,
           tipo_consulta: newAppointment.tipo_consulta,
@@ -218,33 +238,33 @@ export default function AppointmentsPage() {
       alert("Consulta agendada com sucesso!")
       setIsNewAppointmentOpen(false)
       setNewAppointment({
-        paciente_nome: "",
         data: "",
         hora: "",
         tipo_consulta: "",
         observacoes: "",
       })
+      setSelectedPatient(null)
+      setPatientSearch("")
+      setPatientSuggestions([])
       fetchAppointments()
     } catch (error: any) {
       alert("Erro ao agendar consulta: " + error.message)
     }
   }
 
-  // Abrir modal edição com dados da consulta
+  // Abrir modal edição
   function openEditModal(appointment: Appointment) {
     setErrorEdit("")
     setSuccessEdit("")
     setEditingAppointment(appointment)
   }
 
-  // Fechar modal edição
   function closeEditModal() {
     setEditingAppointment(null)
     setErrorEdit("")
     setSuccessEdit("")
   }
 
-  // Atualizar consulta
   async function handleUpdateAppointment() {
     if (!editingAppointment) return
 
@@ -298,7 +318,6 @@ export default function AppointmentsPage() {
     }
   }
 
-  // Cancelar consulta (muda status para "Cancelado")
   async function handleCancelAppointment(appointmentId: string) {
     const confirmCancel = confirm("Tem certeza que deseja cancelar esta consulta?")
     if (!confirmCancel) return
@@ -343,16 +362,35 @@ export default function AppointmentsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <Label htmlFor="patient">Paciente</Label>
                 <Input
                   id="patient"
-                  placeholder="Nome do paciente"
-                  value={newAppointment.paciente_nome}
-                  onChange={(e) =>
-                    setNewAppointment((prev) => ({ ...prev, paciente_nome: e.target.value }))
-                  }
+                  placeholder="Digite o nome do paciente"
+                  value={patientSearch}
+                  onChange={(e) => {
+                    setPatientSearch(e.target.value)
+                    setSelectedPatient(null) // limpa seleção se o usuário editar texto
+                  }}
+                  autoComplete="off"
                 />
+                {patientSuggestions.length > 0 && (
+                  <ul className="absolute z-10 mt-1 max-h-40 w-full overflow-auto rounded-md border bg-white shadow-lg">
+                    {patientSuggestions.map((p) => (
+                      <li
+                        key={p.id}
+                        className="cursor-pointer px-4 py-2 hover:bg-blue-100"
+                        onClick={() => {
+                          setSelectedPatient(p)
+                          setPatientSearch(p.nome)
+                          setPatientSuggestions([])
+                        }}
+                      >
+                        {p.nome}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
