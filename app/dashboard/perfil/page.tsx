@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
@@ -14,8 +14,10 @@ export default function ProfilePage() {
   const router = useRouter()
 
   const [isLoading, setIsLoading] = useState(false)
-  const [profileError, setProfileError] = useState("")
-  const [profileSuccess, setProfileSuccess] = useState("")
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  const [userId, setUserId] = useState<string | null>(null)
 
   const [profileData, setProfileData] = useState({
     nome: "",
@@ -25,22 +27,23 @@ export default function ProfilePage() {
     crm: "",
   })
 
-  // Carrega perfil do usuário
   useEffect(() => {
-    async function fetchProfile() {
+    async function loadProfile() {
       setIsLoading(true)
-      setProfileError("")
+      setError("")
 
       const {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession()
 
-      const user = session?.user
-      if (sessionError || !user) {
+      if (sessionError || !session?.user) {
         router.push("/login")
         return
       }
+
+      const user = session.user
+      setUserId(user.id)
 
       const { data, error } = await supabase
         .from("profiles")
@@ -48,50 +51,49 @@ export default function ProfilePage() {
         .eq("id", user.id)
         .single()
 
-      if (error && error.code !== "PGRST116") {
-        setProfileError("Erro ao carregar perfil: " + error.message)
+      if (error) {
+        setError("Erro ao buscar perfil: " + error.message)
         setIsLoading(false)
         return
       }
 
       setProfileData({
-        nome: data?.nome || user.user_metadata?.full_name || user.email || "",
-        email: data?.email || user.email || "",
-        phone: data?.phone || "",
-        specialty: data?.specialty || "",
-        crm: data?.crm || "",
+        nome: data?.nome ?? "",
+        email: data?.email ?? user.email ?? "",
+        phone: data?.phone ?? "",
+        specialty: data?.specialty ?? "",
+        crm: data?.crm ?? "",
       })
 
       setIsLoading(false)
     }
 
-    fetchProfile()
+    loadProfile()
   }, [router])
 
-  // Atualiza perfil
-  const handleProfileUpdate = async (e: React.FormEvent) => {
+  const handleChange = (field: string, value: string) => {
+    setProfileData((prev) => ({ ...prev, [field]: value }))
+    if (error) setError("")
+    if (success) setSuccess("")
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setProfileError("")
-    setProfileSuccess("")
+    setError("")
+    setSuccess("")
 
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession()
-    const user = session?.user
-
-    if (sessionError || !user) {
-      router.push("/login")
+    if (!userId) {
+      setError("Usuário não autenticado")
+      setIsLoading(false)
       return
     }
 
-    // Atualiza a tabela profiles
-    const { error } = await supabase
+    const { error: upsertError } = await supabase
       .from("profiles")
       .upsert(
         {
-          id: user.id,
+          id: userId,
           nome: profileData.nome,
           email: profileData.email,
           phone: profileData.phone,
@@ -101,74 +103,53 @@ export default function ProfilePage() {
         { onConflict: "id" }
       )
 
-    if (error) {
-      setProfileError("Erro ao atualizar perfil: " + error.message)
-      setIsLoading(false)
-      return
+    if (upsertError) {
+      setError("Erro ao atualizar perfil: " + upsertError.message)
+    } else {
+      setSuccess("Perfil atualizado com sucesso!")
     }
 
-    // Atualiza email no auth, se necessário
-    if (user.email !== profileData.email) {
-      const { error: emailError } = await supabase.auth.updateUser({
-        email: profileData.email,
-      })
-      if (emailError) {
-        setProfileError("Erro ao atualizar e-mail: " + emailError.message)
-        setIsLoading(false)
-        return
-      }
-    }
-
-    setProfileSuccess("Perfil atualizado com sucesso!")
     setIsLoading(false)
-    setTimeout(() => setProfileSuccess(""), 3000)
   }
 
-  // Logout
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push("/login")
   }
 
-  // Atualiza estado dos inputs
-  const handleInputChange = (field: string, value: string) => {
-    setProfileData((prev) => ({ ...prev, [field]: value }))
-    if (profileError) setProfileError("")
-  }
-
   return (
-    <div className="space-y-6 max-w-xl mx-auto p-4">
+    <div className="max-w-xl mx-auto space-y-6 p-4">
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Perfil</h1>
-          <p className="mt-1 text-gray-600">Gerencie suas informações pessoais e configurações</p>
+          <p className="text-gray-600">Atualize suas informações pessoais</p>
         </div>
-        <Button variant="destructive" onClick={handleLogout} className="mt-4 sm:mt-0">
+        <Button variant="destructive" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
-          Sair da Conta
+          Sair
         </Button>
       </header>
 
-      {profileSuccess && (
+      {success && (
         <Alert className="border-green-200 bg-green-50">
-          <AlertDescription className="text-green-800">{profileSuccess}</AlertDescription>
+          <AlertDescription className="text-green-800">{success}</AlertDescription>
         </Alert>
       )}
 
-      {profileError && (
+      {error && (
         <Alert variant="destructive">
-          <AlertDescription>{profileError}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <form onSubmit={handleProfileUpdate} className="space-y-5">
+      <form onSubmit={handleSave} className="space-y-4">
         <div>
-          <Label htmlFor="nome">Nome completo</Label>
+          <Label htmlFor="nome">Nome</Label>
           <Input
             id="nome"
             type="text"
             value={profileData.nome}
-            onChange={(e) => handleInputChange("nome", e.target.value)}
+            onChange={(e) => handleChange("nome", e.target.value)}
             disabled={isLoading}
             required
           />
@@ -180,7 +161,7 @@ export default function ProfilePage() {
             id="email"
             type="email"
             value={profileData.email}
-            onChange={(e) => handleInputChange("email", e.target.value)}
+            onChange={(e) => handleChange("email", e.target.value)}
             disabled={isLoading}
             required
           />
@@ -192,7 +173,7 @@ export default function ProfilePage() {
             id="phone"
             type="tel"
             value={profileData.phone}
-            onChange={(e) => handleInputChange("phone", e.target.value)}
+            onChange={(e) => handleChange("phone", e.target.value)}
             disabled={isLoading}
           />
         </div>
@@ -203,7 +184,7 @@ export default function ProfilePage() {
             id="specialty"
             type="text"
             value={profileData.specialty}
-            onChange={(e) => handleInputChange("specialty", e.target.value)}
+            onChange={(e) => handleChange("specialty", e.target.value)}
             disabled={isLoading}
           />
         </div>
@@ -214,13 +195,13 @@ export default function ProfilePage() {
             id="crm"
             type="text"
             value={profileData.crm}
-            onChange={(e) => handleInputChange("crm", e.target.value)}
+            onChange={(e) => handleChange("crm", e.target.value)}
             disabled={isLoading}
           />
         </div>
 
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? "Salvando..." : "Salvar Perfil"}
+          {isLoading ? "Salvando..." : "Salvar Alterações"}
         </Button>
       </form>
     </div>

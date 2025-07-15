@@ -60,15 +60,18 @@ export default function DashboardPage() {
       setError("")
 
       try {
-        // Pega o usuário logado
+        // Obtém a sessão atual e o usuário logado
         const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser()
-        if (userError) throw userError
-        if (!user) throw new Error("Usuário não autenticado")
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession()
 
-        // Busca o perfil (nome) na tabela profiles usando o user.id
+        if (sessionError) throw sessionError
+        if (!session || !session.user) throw new Error("Usuário não autenticado")
+
+        const user = session.user
+
+        // Busca o perfil do usuário (nome completo)
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("full_name")
@@ -78,14 +81,14 @@ export default function DashboardPage() {
         if (profileError) throw profileError
         setUserName(profileData?.full_name ?? "")
 
-        // Total de pacientes
+        // Busca total de pacientes (contagem)
         const { count: totalPatients, error: countError } = await supabase
           .from("patients")
           .select("id", { count: "exact", head: true })
 
         if (countError) throw countError
 
-        // Pacientes recentes
+        // Busca últimos 3 pacientes cadastrados
         const { data: patientsData, error: patientsError } = await supabase
           .from("patients")
           .select("id, nome, email, criado_em")
@@ -94,7 +97,7 @@ export default function DashboardPage() {
 
         if (patientsError) throw patientsError
 
-        // Consultas do dia
+        // Busca consultas do dia atual
         const today = new Date()
         const todayString = today.toISOString().slice(0, 10) // 'YYYY-MM-DD'
 
@@ -113,11 +116,36 @@ export default function DashboardPage() {
 
         if (appointmentsError) throw appointmentsError
 
+        // Calcula receita mensal somando os valores das receitas (tipo = "Receita") do mês atual
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+          .toISOString()
+          .slice(0, 10)
+        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+          .toISOString()
+          .slice(0, 10)
+
+        const { data: financialData, error: financialError } = await supabase
+          .from("financial_records")
+          .select("valor")
+          .gte("data", firstDayOfMonth)
+          .lte("data", lastDayOfMonth)
+          .eq("tipo", "Receita")
+
+        if (financialError) throw financialError
+
+        const monthlyRevenue = financialData
+          ? financialData.reduce((acc, record) => acc + (record.valor ?? 0), 0)
+          : 0
+
+        // Para o crescimento, você pode calcular a variação percentual em relação ao mês anterior
+        // Aqui deixo zero para você implementar depois
+        const growthRate = 0
+
         setStats({
           totalPatients: totalPatients || 0,
           consultationsToday: appointmentsData?.length || 0,
-          monthlyRevenue: 45231, // aqui você pode puxar da tabela financeira se quiser
-          growthRate: 12.5,
+          monthlyRevenue,
+          growthRate,
         })
 
         setRecentPatients(patientsData || [])
@@ -227,11 +255,11 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-900">
-              R$ {stats.monthlyRevenue.toLocaleString("pt-BR")}
+              R$ {stats.monthlyRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-green-600 flex items-center mt-1">
               <TrendingUp className="mr-1 h-3 w-3" />
-              +18% em relação ao mês anterior
+              {stats.growthRate > 0 ? `+${stats.growthRate}% em relação ao mês anterior` : "Sem dados de crescimento"}
             </p>
           </CardContent>
         </Card>
@@ -270,7 +298,7 @@ export default function DashboardPage() {
               {recentPatients.map((patient) => (
                 <div key={patient.id} className="flex items-center space-x-4">
                   <Avatar>
-                    <AvatarImage src="/placeholder.svg?height=40&width=40" />
+                    <AvatarImage src="/placeholder.svg?height=40&width=40" alt={`Avatar de ${patient.nome}`} />
                     <AvatarFallback>
                       {patient.nome
                         .split(" ")
@@ -333,7 +361,7 @@ export default function DashboardPage() {
                         {appointment.paciente_nome}
                       </p>
                       <p className="text-sm text-gray-500">
-                        {appointment.hora} - {appointment.tipo_consulta}
+                        {appointment.hora} - {appointment.tipo_consulta ?? "Tipo não informado"}
                       </p>
                     </div>
                   </div>

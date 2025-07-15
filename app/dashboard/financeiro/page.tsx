@@ -41,7 +41,7 @@ export default function FinancialPage() {
   const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false)
   const [editTransactionId, setEditTransactionId] = useState<number | null>(null)
   const [newTransaction, setNewTransaction] = useState({
-    patient: "",
+    // Removi patient, pois não será obrigatório
     description: "",
     amount: "",
     date: "",
@@ -50,16 +50,11 @@ export default function FinancialPage() {
     type: "Receita",
   })
 
-  // Buscar dados financeiros com relacionamento paciente
+  // Buscar dados financeiros - sem join com paciente (porque agora paciente é opcional)
   const fetchFinancialData = async () => {
     const { data, error } = await supabase
       .from("financial_records")
-      .select(`
-        *,
-        paciente:paciente_id (
-          nome
-        )
-      `)
+      .select("*")
       .order("data", { ascending: false })
 
     if (error) {
@@ -67,11 +62,7 @@ export default function FinancialPage() {
       return
     }
 
-    const dataWithNames = data.map((item) => ({
-      ...item,
-      patient: item.paciente?.nome || "-",
-    }))
-    setFinancialData(dataWithNames)
+    setFinancialData(data || [])
   }
 
   useEffect(() => {
@@ -80,8 +71,8 @@ export default function FinancialPage() {
 
   const handleSaveTransaction = async () => {
     const payload = {
-      paciente_id: newTransaction.patient || null,
-      descricao: newTransaction.description,
+      paciente_id: null, // Forçando null pois não terá paciente vinculado
+      descricao: newTransaction.description.trim(),
       valor: parseFloat(newTransaction.amount),
       data: newTransaction.date,
       tipo: newTransaction.type,
@@ -89,9 +80,8 @@ export default function FinancialPage() {
       metodo: newTransaction.method,
     }
 
-    // Validação simples
+    // Validação simples (paciente não é obrigatório)
     if (
-      !payload.paciente_id ||
       !payload.descricao ||
       isNaN(payload.valor) ||
       !payload.data ||
@@ -115,7 +105,7 @@ export default function FinancialPage() {
       alert(`Erro ao salvar transação: ${result.error.message}`)
     } else {
       setIsNewTransactionOpen(false)
-      setNewTransaction({ patient: "", description: "", amount: "", date: "", status: "Pago", method: "", type: "Receita" })
+      setNewTransaction({ description: "", amount: "", date: "", status: "Pago", method: "", type: "Receita" })
       setEditTransactionId(null)
       fetchFinancialData()
     }
@@ -123,7 +113,6 @@ export default function FinancialPage() {
 
   const handleEdit = (item: any) => {
     setNewTransaction({
-      patient: item.paciente_id || "",
       description: item.descricao,
       amount: item.valor.toString(),
       date: item.data,
@@ -147,7 +136,6 @@ export default function FinancialPage() {
 
   const filteredData = financialData.filter((item) => {
     const matchesSearch =
-      item.patient?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || item.status === statusFilter
     const matchesType = typeFilter === "all" || item.tipo === typeFilter
@@ -179,7 +167,7 @@ export default function FinancialPage() {
           onOpenChange={(open) => {
             if (!open) {
               setEditTransactionId(null)
-              setNewTransaction({ patient: "", description: "", amount: "", date: "", status: "Pago", method: "", type: "Receita" })
+              setNewTransaction({ description: "", amount: "", date: "", status: "Pago", method: "", type: "Receita" })
             }
             setIsNewTransactionOpen(open)
           }}
@@ -305,7 +293,6 @@ export default function FinancialPage() {
                   <TableRow key={item.id}>
                     <TableCell>
                       <div className="font-semibold">{item.descricao}</div>
-                      {item.patient !== "-" && <div className="text-sm text-gray-500">{item.patient}</div>}
                     </TableCell>
                     <TableCell className="text-sm">
                       <Badge className={getTypeColor(item.tipo)}>{item.tipo}</Badge> R$ {item.valor.toFixed(2)}
