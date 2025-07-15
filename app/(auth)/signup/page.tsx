@@ -68,31 +68,6 @@ export default function SignupPage() {
     }
   }
 
-  if (success) {
-    return (
-      <Card className="shadow-xl border-0">
-        <CardContent className="pt-6 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Cadastro realizado!
-          </h3>
-          <p className="text-gray-600">
-            Verifique seu e-mail para confirmar sua conta antes de fazer login.
-          </p>
-          <div className="mt-6">
-            <Link href="/login">
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                Ir para Login
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
   return (
     <Card className="shadow-xl border-0">
       <CardHeader className="text-center">
@@ -100,100 +75,125 @@ export default function SignupPage() {
         <CardDescription className="text-gray-600">Cadastre-se para acessar o sistema</CardDescription>
       </CardHeader>
 
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+      {/* ✅ Alerta de sucesso */}
+      {success && (
+        <CardContent>
+          <Alert variant="default" className="bg-green-100 text-green-800 border-green-300">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <AlertDescription>
+                Verifique seu e-mail para confirmar sua conta antes de fazer login.
+              </AlertDescription>
+            </div>
+          </Alert>
 
-          <div className="space-y-2">
-            <Label htmlFor="full_name">Nome completo</Label>
-            <Input
-              id="full_name"
-              type="text"
-              placeholder="Dr. João Silva"
-              value={formData.full_name}
-              onChange={(e) => handleInputChange("full_name", e.target.value)}
-              required
-              disabled={isLoading}
-            />
+          <div className="mt-6 text-center">
+            <Link href="/login">
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                Ir para Login
+              </Button>
+            </Link>
           </div>
+        </CardContent>
+      )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="doutor@clinica.com"
-              value={formData.email}
-              onChange={(e) => handleInputChange("email", e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
+      {/* 🔁 Formulário (só aparece se não houver sucesso) */}
+      {!success && (
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <div className="relative">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Nome completo</Label>
               <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Mínimo 6 caracteres"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
+                id="full_name"
+                type="text"
+                placeholder="Dr. João Silva"
+                value={formData.full_name}
+                onChange={(e) => handleInputChange("full_name", e.target.value)}
                 required
                 disabled={isLoading}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Mostrar/ocultar senha"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={isLoading}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar senha</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Digite a senha novamente"
-              value={formData.confirmPassword}
-              onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-              required
-              disabled={isLoading}
-            />
-          </div>
-        </CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="doutor@clinica.com"
+                value={formData.email}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
 
-        <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Criando conta...
-              </>
-            ) : (
-              "Cadastrar"
-            )}
-          </Button>
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Mínimo 6 caracteres"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Mostrar/ocultar senha"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
 
-          <p className="text-center text-sm text-gray-600">
-            Já tem uma conta?{" "}
-            <Link href="/login" className="text-blue-600 hover:underline font-medium">
-              Entrar
-            </Link>
-          </p>
-        </CardFooter>
-      </form>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar senha</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Digite a senha novamente"
+                value={formData.confirmPassword}
+                onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Criando conta...
+                </>
+              ) : (
+                "Cadastrar"
+              )}
+            </Button>
+
+            <p className="text-center text-sm text-gray-600">
+              Já tem uma conta?{" "}
+              <Link href="/login" className="text-blue-600 hover:underline font-medium">
+                Entrar
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      )}
     </Card>
   )
 }
