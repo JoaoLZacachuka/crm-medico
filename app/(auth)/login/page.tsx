@@ -37,7 +37,17 @@ export default function LoginPage() {
     }
 
     try {
-      await login(formData.email, formData.password)
+      const { session, error: loginError } = await login(formData.email, formData.password)
+      if (loginError) {
+        setError(loginError.message)
+        setIsLoading(false)
+        return
+      }
+      if (!session) {
+        setError("Falha ao iniciar sessão")
+        setIsLoading(false)
+        return
+      }
       router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "Erro ao tentar fazer login")

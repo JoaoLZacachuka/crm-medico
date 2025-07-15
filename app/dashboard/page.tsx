@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import {
   Card,
   CardContent,
@@ -50,28 +51,31 @@ export default function DashboardPage() {
   const [recentPatients, setRecentPatients] = useState<Patient[]>([])
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([])
   const [userName, setUserName] = useState<string>("")
-
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
+  const router = useRouter()
+
   useEffect(() => {
-    async function fetchUserAndData() {
+    async function fetchData() {
+      const supabase = createClientComponentClient()
       setLoading(true)
-      setError("")
 
       try {
-        // Obtém a sessão atual e o usuário logado
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession()
 
         if (sessionError) throw sessionError
-        if (!session || !session.user) throw new Error("Usuário não autenticado")
+        if (!session || !session.user) {
+          router.push("/login")
+          return
+        }
 
         const user = session.user
 
-        // Busca o perfil do usuário (nome completo)
+        // Nome do usuário
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("full_name")
@@ -81,14 +85,14 @@ export default function DashboardPage() {
         if (profileError) throw profileError
         setUserName(profileData?.full_name ?? "")
 
-        // Busca total de pacientes (contagem)
+        // Total de pacientes
         const { count: totalPatients, error: countError } = await supabase
           .from("patients")
-          .select("id", { count: "exact", head: true })
+          .select("*", { count: "exact", head: true })
 
         if (countError) throw countError
 
-        // Busca últimos 3 pacientes cadastrados
+        // Últimos 3 pacientes
         const { data: patientsData, error: patientsError } = await supabase
           .from("patients")
           .select("id, nome, email, criado_em")
@@ -97,102 +101,100 @@ export default function DashboardPage() {
 
         if (patientsError) throw patientsError
 
-        // Busca consultas do dia atual
+        // Consultas do dia
         const today = new Date()
-        const todayString = today.toISOString().slice(0, 10) // 'YYYY-MM-DD'
+        const todayStr = today.toISOString().split("T")[0]
 
-        const { data: appointmentsData, error: appointmentsError } = await supabase
-          .from("appointments")
-          .select(`
-            id,
-            hora,
-            tipo_consulta,
-            observacoes,
-            data,
-            paciente:patients(nome)
-          `)
-          .eq("data", todayString)
-          .order("hora")
+        const { data: appointmentsData, error: appointmentsError } =
+          await supabase
+            .from("appointments")
+            .select(`
+              id,
+              hora,
+              tipo_consulta,
+              observacoes,
+              data,
+              patients(nome)
+            `)
+            .eq("data", todayStr)
+            .order("hora")
 
         if (appointmentsError) throw appointmentsError
 
-        // Calcula receita mensal somando os valores das receitas (tipo = "Receita") do mês atual
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-          .toISOString()
-          .slice(0, 10)
-        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-          .toISOString()
-          .slice(0, 10)
-
-        const { data: financialData, error: financialError } = await supabase
-          .from("financial_records")
-          .select("valor")
-          .gte("data", firstDayOfMonth)
-          .lte("data", lastDayOfMonth)
-          .eq("tipo", "Receita")
-
-        if (financialError) throw financialError
-
-        const monthlyRevenue = financialData
-          ? financialData.reduce((acc, record) => acc + (record.valor ?? 0), 0)
-          : 0
-
-        // Para o crescimento, você pode calcular a variação percentual em relação ao mês anterior
-        // Aqui deixo zero para você implementar depois
-        const growthRate = 0
-
-        setStats({
-          totalPatients: totalPatients || 0,
-          consultationsToday: appointmentsData?.length || 0,
-          monthlyRevenue,
-          growthRate,
-        })
-
-        setRecentPatients(patientsData || [])
-
-        setTodayAppointments(
-          (appointmentsData || []).map((apt) => ({
+        const mappedAppointments =
+          appointmentsData?.map((apt: any) => ({
             id: apt.id,
-            paciente_nome: apt.paciente?.nome ?? "Desconhecido",
             hora: apt.hora,
             tipo_consulta: apt.tipo_consulta,
             observacoes: apt.observacoes,
             data: apt.data,
-          }))
-        )
+            paciente_nome: apt.patients?.nome || "Desconhecido",
+          })) || []
+
+        // Receita do mês
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
+          .toISOString()
+          .split("T")[0]
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+          .toISOString()
+          .split("T")[0]
+
+        const { data: financialData, error: financialError } = await supabase
+          .from("financial_records")
+          .select("valor")
+          .eq("tipo", "Receita")
+          .gte("data", firstDay)
+          .lte("data", lastDay)
+
+        if (financialError) throw financialError
+
+        const monthlyRevenue = financialData?.reduce(
+          (acc, item) => acc + (item.valor || 0),
+          0
+        ) ?? 0
+
+        setStats({
+          totalPatients: totalPatients ?? 0,
+          consultationsToday: mappedAppointments.length,
+          monthlyRevenue,
+          growthRate: 0, // Você pode calcular isso depois
+        })
+
+        setRecentPatients(patientsData ?? [])
+        setTodayAppointments(mappedAppointments)
       } catch (err: any) {
-        setError("Erro ao carregar dados: " + err.message)
+        console.error(err)
+        setError("Erro ao carregar dados do dashboard: " + err.message)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchUserAndData()
-  }, [])
+    fetchData()
+  }, [router])
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 text-gray-600">
-        Carregando dados do dashboard...
+        Carregando...
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-red-600 font-semibold text-center py-8">{error}</div>
+      <div className="text-red-600 text-center mt-10 font-semibold">{error}</div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">Bem-vindo de volta, Dr. {userName}</p>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Bem-vindo, Dr. {userName}</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
+        <div className="flex gap-3">
           <Button asChild>
             <Link href="/dashboard/novo-paciente">
               <UserPlus className="mr-2 h-4 w-4" />
@@ -208,177 +210,102 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stat Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Total de Pacientes
-            </CardTitle>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle className="text-sm font-medium">Pacientes</CardTitle>
             <Users className="h-4 w-4 text-gray-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {stats.totalPatients}
-            </div>
-            <p className="text-xs text-green-600 flex items-center mt-1">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              +12% em relação ao mês anterior
-            </p>
+          <CardContent className="text-2xl font-bold">
+            {stats.totalPatients}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Consultas Hoje
-            </CardTitle>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle className="text-sm font-medium">Consultas Hoje</CardTitle>
             <Calendar className="h-4 w-4 text-gray-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {stats.consultationsToday}
-            </div>
-            <p className="text-xs text-green-600 flex items-center mt-1">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              +5% em relação à semana passada
-            </p>
+          <CardContent className="text-2xl font-bold">
+            {stats.consultationsToday}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Receita Mensal
-            </CardTitle>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
             <DollarSign className="h-4 w-4 text-gray-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              R$ {stats.monthlyRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-green-600 flex items-center mt-1">
-              <TrendingUp className="mr-1 h-3 w-3" />
-              {stats.growthRate > 0 ? `+${stats.growthRate}% em relação ao mês anterior` : "Sem dados de crescimento"}
-            </p>
+          <CardContent className="text-2xl font-bold">
+            R$ {stats.monthlyRevenue.toFixed(2)}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Taxa de Crescimento
-            </CardTitle>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle className="text-sm font-medium">Crescimento</CardTitle>
             <TrendingUp className="h-4 w-4 text-gray-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900">
-              {stats.growthRate}%
-            </div>
-            <p className="text-xs text-green-600 flex items-center mt-1">
-              +2.1% em relação ao mês anterior
-            </p>
+          <CardContent className="text-2xl font-bold">
+            {stats.growthRate}%
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Patients */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Pacientes Recentes e Consultas */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="mr-2 h-5 w-5" />
-              Pacientes Recentes
-            </CardTitle>
-            <CardDescription>Últimos pacientes cadastrados no sistema</CardDescription>
+            <CardTitle>Pacientes Recentes</CardTitle>
+            <CardDescription>Últimos 3 cadastrados</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentPatients.length === 0 && <p>Nenhum paciente recente encontrado.</p>}
-              {recentPatients.map((patient) => (
-                <div key={patient.id} className="flex items-center space-x-4">
+          <CardContent className="space-y-4">
+            {recentPatients.length === 0 ? (
+              <p>Nenhum paciente recente.</p>
+            ) : (
+              recentPatients.map((p) => (
+                <div key={p.id} className="flex items-center gap-4">
                   <Avatar>
-                    <AvatarImage src="/placeholder.svg?height=40&width=40" alt={`Avatar de ${patient.nome}`} />
-                    <AvatarFallback>
-                      {patient.nome
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
+                    <AvatarImage src="/avatar.svg" alt={p.nome} />
+                    <AvatarFallback>{p.nome[0]}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {patient.nome}
-                    </p>
-                    <p className="text-sm text-gray-500 truncate">
-                      {patient.email ?? "-"}
-                    </p>
+                  <div className="flex-1">
+                    <p className="font-medium">{p.nome}</p>
+                    <p className="text-sm text-gray-500">{p.email || "Sem e-mail"}</p>
                   </div>
-                  <div className="flex flex-col items-end">
-                    <Badge variant="default">Ativo</Badge>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {patient.criado_em
-                        ? new Date(patient.criado_em).toLocaleDateString("pt-BR")
-                        : "-"}
-                    </p>
-                  </div>
+                  <Badge>Ativo</Badge>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <Button variant="outline" className="w-full bg-transparent" asChild>
-                <Link href="/dashboard/pacientes">Ver todos os pacientes</Link>
-              </Button>
-            </div>
+              ))
+            )}
           </CardContent>
         </Card>
 
-        {/* Today's Appointments */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="mr-2 h-5 w-5" />
-              Consultas de Hoje
-            </CardTitle>
-            <CardDescription>
-              Agenda do dia {new Date().toLocaleDateString("pt-BR")}
-            </CardDescription>
+            <CardTitle>Consultas de Hoje</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {todayAppointments.length === 0 && <p>Nenhuma consulta para hoje.</p>}
-              {todayAppointments.map((appointment) => (
+          <CardContent className="space-y-4">
+            {todayAppointments.length === 0 ? (
+              <p>Nenhuma consulta para hoje.</p>
+            ) : (
+              todayAppointments.map((apt) => (
                 <div
-                  key={appointment.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  key={apt.id}
+                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
                 >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                      <Clock className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {appointment.paciente_nome}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {appointment.hora} - {appointment.tipo_consulta ?? "Tipo não informado"}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="font-medium">{apt.paciente_nome}</p>
+                    <p className="text-sm text-gray-500">
+                      {apt.hora} - {apt.tipo_consulta || "Tipo não informado"}
+                    </p>
                   </div>
-                  <Badge
-                    variant={appointment.observacoes ? "default" : "secondary"}
-                    className="flex items-center"
-                  >
-                    {appointment.observacoes || "Sem observações"}
+                  <Badge variant="outline">
+                    {apt.observacoes || "Sem observações"}
                   </Badge>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <Button variant="outline" className="w-full bg-transparent" asChild>
-                <Link href="/dashboard/consultas">Ver todas as consultas</Link>
-              </Button>
-            </div>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

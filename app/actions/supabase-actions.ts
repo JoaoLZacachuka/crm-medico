@@ -1,23 +1,37 @@
 'use server'
 
-import { supabase } from "@/utils/supabase"
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
-// Login do usuário
+// Cria cliente server-side com cookies
+const createServerClient = () => createServerActionClient({ cookies })
+
+// LOGIN
 export async function login(email: string, password: string) {
+  const supabase = createServerClient()
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw new Error(error.message)
-  return data.user // retorna o usuário logado
+  return { session: data.session, error }
 }
 
-// Signup e criação do perfil
+// LOGOUT
+export async function logout() {
+  const supabase = createServerClient()
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+// SIGNUP
 export async function signup(email: string, password: string, full_name: string) {
+  const supabase = createServerClient()
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name }, // vai para user_metadata
+      data: { full_name },
     },
   })
+
   if (error) throw new Error(error.message)
 
   if (data.user) {
@@ -35,22 +49,26 @@ export async function signup(email: string, password: string, full_name: string)
   return data
 }
 
-// Envia link de redefinição de senha
+// RESET DE SENHA
 export async function sendResetEmail(email: string) {
+  const supabase = createServerClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password`,
   })
   if (error) throw new Error(error.message)
 }
 
-// Atualiza a senha do usuário logado
+// UPDATE DE SENHA
 export async function updatePassword(newPassword: string) {
+  const supabase = createServerClient()
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) throw new Error(error.message)
 }
 
-// Busca o perfil do usuário logado (full_name)
+// BUSCA PERFIL DO USUÁRIO
 export async function getUserProfile() {
+  const supabase = createServerClient()
+
   const {
     data: { user },
     error: userError,
@@ -70,20 +88,23 @@ export async function getUserProfile() {
   return data
 }
 
-// Cria novo paciente
+// CRIA PACIENTE
 export async function createPatient(data: any) {
+  const supabase = createServerClient()
   const { error } = await supabase.from("patients").insert([data])
   if (error) throw new Error(error.message)
 }
 
-// Cria nova consulta
+// CRIA CONSULTA
 export async function createAppointment(data: any) {
+  const supabase = createServerClient()
   const { error } = await supabase.from("appointments").insert([data])
   if (error) throw new Error(error.message)
 }
 
-// Cria novo registro financeiro
+// CRIA REGISTRO FINANCEIRO
 export async function createFinancialRecord(data: any) {
+  const supabase = createServerClient()
   const { error } = await supabase.from("financial_records").insert([data])
   if (error) throw new Error(error.message)
 }
