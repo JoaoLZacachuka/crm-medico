@@ -1,69 +1,79 @@
 "use client"
-export const dynamic = "force-dynamic"
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { supabase } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
-
-import { updatePassword } from "@/app/actions/supabase-actions"
+import Link from "next/link"
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [showPassword, setShowPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    password: "",
-    confirmPassword: "",
-  })
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-    if (error) setError("")
-  }
+  // 1. Valida token de recuperação de senha
+  useEffect(() => {
+    const access_token = searchParams.get("access_token")
+    if (access_token) {
+      supabase.auth
+        .setSession({
+          access_token,
+          refresh_token: searchParams.get("refresh_token") || "",
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error("Erro ao validar token:", error)
+            setError("Link inválido ou expirado. Solicite um novo.")
+          }
+        })
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
 
-    if (!formData.password || !formData.confirmPassword) {
+    if (!password || !confirmPassword) {
       setError("Por favor, preencha todos os campos")
       setIsLoading(false)
       return
     }
 
-    if (formData.password !== formData.confirmPassword) {
+    if (password !== confirmPassword) {
       setError("As senhas não coincidem")
       setIsLoading(false)
       return
     }
 
-    if (formData.password.length < 6) {
+    if (password.length < 6) {
       setError("A senha deve ter pelo menos 6 caracteres")
       setIsLoading(false)
       return
     }
 
-    try {
-      await updatePassword(formData.password)
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) {
+      setError(error.message)
+    } else {
       setSuccess(true)
       setTimeout(() => {
         router.push("/login")
       }, 2000)
-    } catch (err: any) {
-      setError(err.message || "Erro ao redefinir a senha")
-    } finally {
-      setIsLoading(false)
     }
+
+    setIsLoading(false)
   }
 
   if (success) {
@@ -89,9 +99,6 @@ export default function ResetPasswordPage() {
     <Card className="shadow-xl border-0">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold text-gray-900">Redefinir senha</CardTitle>
-        <CardDescription className="text-gray-600">
-          Digite sua nova senha
-        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
@@ -108,8 +115,8 @@ export default function ResetPasswordPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Mínimo 6 caracteres"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
               />
@@ -136,8 +143,8 @@ export default function ResetPasswordPage() {
               id="confirmPassword"
               type="password"
               placeholder="Digite a senha novamente"
-              value={formData.confirmPassword}
-              onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={isLoading}
             />
