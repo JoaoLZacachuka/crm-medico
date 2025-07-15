@@ -10,8 +10,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react"
+import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { signup } from "@/app/actions/supabase-actions"
+import { SignupSuccess } from "@/components/SignupSuccess"
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -75,30 +76,9 @@ export default function SignupPage() {
         <CardDescription className="text-gray-600">Cadastre-se para acessar o sistema</CardDescription>
       </CardHeader>
 
-      {/* ✅ Alerta de sucesso */}
-      {success && (
-        <CardContent>
-          <Alert variant="default" className="bg-green-100 text-green-800 border-green-300">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              <AlertDescription>
-                Verifique seu e-mail para confirmar sua conta antes de fazer login.
-              </AlertDescription>
-            </div>
-          </Alert>
-
-          <div className="mt-6 text-center">
-            <Link href="/login">
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                Ir para Login
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      )}
-
-      {/* 🔁 Formulário (só aparece se não houver sucesso) */}
-      {!success && (
+      {success ? (
+        <SignupSuccess />
+      ) : (
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             {error && (
