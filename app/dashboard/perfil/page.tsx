@@ -49,7 +49,7 @@ export default function ProfilePage() {
         .from("profiles")
         .select("nome, email, phone, specialty, crm")
         .eq("id", user.id)
-        .single()
+        .maybeSingle()
 
       if (error) {
         setError("Erro ao buscar perfil: " + error.message)
@@ -58,11 +58,11 @@ export default function ProfilePage() {
       }
 
       setProfileData({
-        nome: data?.nome ?? "",
-        email: data?.email ?? user.email ?? "",
-        phone: data?.phone ?? "",
-        specialty: data?.specialty ?? "",
-        crm: data?.crm ?? "",
+        nome: data?.nome || "",
+        email: data?.email || user.email || "",
+        phone: data?.phone || "",
+        specialty: data?.specialty || "",
+        crm: data?.crm || "",
       })
 
       setIsLoading(false)

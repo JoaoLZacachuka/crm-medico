@@ -35,13 +35,17 @@ export async function signup(email: string, password: string, full_name: string)
   if (error) throw new Error(error.message)
 
   if (data.user) {
+    // Usa upsert para evitar conflito de chave duplicada
     const { error: profileError } = await supabase
       .from("profiles")
-      .insert({
-        id: data.user.id,
-        full_name,
-        email,
-      })
+      .upsert(
+        {
+          id: data.user.id,
+          full_name,
+          email,
+        },
+        { onConflict: "id" }
+      )
 
     if (profileError) throw new Error(profileError.message)
   }

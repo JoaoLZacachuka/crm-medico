@@ -4,8 +4,12 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
-  Card, CardContent, CardDescription, CardFooter,
-  CardHeader, CardTitle
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,18 +28,19 @@ export default function SignupPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
+  const [success, setSuccess] = useState("")
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     if (error) setError("")
+    if (success) setSuccess("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
-    setSuccess(false)
+    setSuccess("")
 
     const { full_name, email, password, confirmPassword } = formData
 
@@ -58,12 +63,14 @@ export default function SignupPage() {
     }
 
     try {
-      await signup(email, password, full_name)
-      setSuccess(true)
+      const response = await signup(email, password, full_name)
+      setSuccess(response.message || "Cadastro realizado! Por favor, verifique seu e-mail para confirmar seu cadastro.")
+      setError("")
     } catch (err: unknown) {
       console.error("Erro no signup:", err)
       const message = err instanceof Error ? err.message : "Erro ao criar conta"
       setError(message)
+      setSuccess("")
     } finally {
       setIsLoading(false)
     }
@@ -77,7 +84,7 @@ export default function SignupPage() {
       </CardHeader>
 
       {success ? (
-        <SignupSuccess />
+        <SignupSuccess message={success} />
       ) : (
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">

@@ -20,7 +20,6 @@ import {
   TrendingUp,
   UserPlus,
   CalendarPlus,
-  Clock,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -60,6 +59,7 @@ export default function DashboardPage() {
     async function fetchData() {
       const supabase = createClientComponentClient()
       setLoading(true)
+      setError("")
 
       try {
         const {
@@ -74,16 +74,23 @@ export default function DashboardPage() {
         }
 
         const user = session.user
+        console.log("Usuário logado ID:", user.id)
 
-        // Nome do usuário
+        // Buscar perfil com maybeSingle para evitar erro se não encontrado
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("full_name")
           .eq("id", user.id)
-          .single()
+          .maybeSingle()
 
         if (profileError) throw profileError
-        setUserName(profileData?.full_name ?? "")
+
+        if (!profileData) {
+          console.warn("Perfil do usuário não encontrado")
+          setUserName("")
+        } else {
+          setUserName(profileData.full_name ?? "")
+        }
 
         // Total de pacientes
         const { count: totalPatients, error: countError } = await supabase
@@ -157,14 +164,18 @@ export default function DashboardPage() {
           totalPatients: totalPatients ?? 0,
           consultationsToday: mappedAppointments.length,
           monthlyRevenue,
-          growthRate: 0, // Você pode calcular isso depois
+          growthRate: 0,
         })
 
         setRecentPatients(patientsData ?? [])
         setTodayAppointments(mappedAppointments)
-      } catch (err: any) {
-        console.error(err)
-        setError("Erro ao carregar dados do dashboard: " + err.message)
+      } catch (err: unknown) {
+        console.error("Erro ao carregar dashboard:", err)
+        if (err instanceof Error) {
+          setError("Erro ao carregar dados do dashboard: " + err.message)
+        } else {
+          setError("Erro ao carregar dados do dashboard: erro desconhecido")
+        }
       } finally {
         setLoading(false)
       }
