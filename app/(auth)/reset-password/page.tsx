@@ -1,29 +1,49 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react"
-
-import { updatePassword } from "@/app/actions/supabase-actions"
-import { supabase } from "@/lib/supabase/supabaseClient" // 🔧 Correção aqui
+import { supabase } from "@/lib/supabaseClient"
 
 export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    password: "",
-    confirmPassword: "",
-  })
+  const [formData, setFormData] = useState({ password: "", confirmPassword: "" })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const accessToken = searchParams.get("access_token")
+
+  useEffect(() => {
+    const authenticateWithToken = async () => {
+      if (accessToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: "", // token vazio funciona para redefinição
+        })
+
+        if (error) {
+          setError("Token inválido ou expirado. Solicite um novo link.")
+        }
+      }
+    }
+
+    authenticateWithToken()
+  }, [accessToken])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -54,11 +74,11 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      await updatePassword(formData.password)
+      const { error } = await supabase.auth.updateUser({ password: formData.password })
+      if (error) throw error
+
       setSuccess(true)
-      setTimeout(() => {
-        router.push("/login")
-      }, 2000)
+      setTimeout(() => router.push("/login"), 3000)
     } catch (err: any) {
       setError(err.message || "Erro ao redefinir a senha")
     } finally {
@@ -89,9 +109,7 @@ export default function ResetPasswordPage() {
     <Card className="shadow-xl border-0">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl font-bold text-gray-900">Redefinir senha</CardTitle>
-        <CardDescription className="text-gray-600">
-          Digite sua nova senha
-        </CardDescription>
+        <CardDescription className="text-gray-600">Digite sua nova senha</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">

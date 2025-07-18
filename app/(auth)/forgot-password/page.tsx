@@ -3,12 +3,18 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Loader2, Mail } from "lucide-react"
-
 import { supabase } from "@/lib/supabaseClient"
 
 export default function ForgotPasswordPage() {
@@ -30,11 +36,10 @@ export default function ForgotPasswordPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://seu-dominio.com/reset-password", // Substitua pela URL real do seu app
+        redirectTo: "https://crmedic.netlify.app/reset-password", // ✅ Troque se for local: http://localhost:3000/reset-password
       })
 
       if (error) throw error
-
       setSuccess(true)
     } catch (err: any) {
       setError(err.message || "Erro ao enviar o e-mail")
@@ -53,7 +58,7 @@ export default function ForgotPasswordPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">E-mail enviado!</h3>
             <p className="text-gray-600 mb-4">
-              Enviamos um link de redefinição para <strong>{email}</strong>.  
+              Enviamos um link de redefinição para <strong>{email}</strong>.
               Verifique sua caixa de entrada.
             </p>
           </div>
@@ -77,7 +82,6 @@ export default function ForgotPasswordPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
             <Input
