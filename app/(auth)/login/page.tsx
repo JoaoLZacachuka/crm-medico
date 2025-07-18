@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 
 import { login } from "@/app/actions/supabase-actions"
+import { AuthApiError } from "@supabase/supabase-js"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -38,16 +39,23 @@ export default function LoginPage() {
 
     try {
       const { session, error: loginError } = await login(formData.email, formData.password)
+
       if (loginError) {
-        setError(loginError.message)
+        if (loginError instanceof AuthApiError && loginError.status === 400) {
+          setError("Login ou senha inválido")
+        } else {
+          setError(loginError.message || "Erro ao tentar fazer login")
+        }
         setIsLoading(false)
         return
       }
+
       if (!session) {
         setError("Falha ao iniciar sessão")
         setIsLoading(false)
         return
       }
+
       router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "Erro ao tentar fazer login")

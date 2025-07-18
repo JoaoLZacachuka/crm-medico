@@ -10,7 +10,12 @@ const createServerClient = () => createServerActionClient({ cookies })
 export async function login(email: string, password: string) {
   const supabase = createServerClient()
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  return { session: data.session, error }
+
+  if (error || !data.session) {
+    return { session: null, error: "Login ou senha inválido" }
+  }
+
+  return { session: data.session, error: null }
 }
 
 // LOGOUT
